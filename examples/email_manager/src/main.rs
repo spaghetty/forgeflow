@@ -1,11 +1,56 @@
-fn main() {
-    let trigger = GmailChecker::from_pool(); //define a loop time cadence
-    let model = Gemini::new();
-    let actuator = GmailActions::from_action(Action::MarkRead);
-    let agent = Agent::new()
-        .with_trigger(trigger)
-        .with_model(model)
-        .with_actuators(vec![actuator]);
+use forgeflow::{agent::Agent, shutdown, triggers::PollTrigger};
+use rig::providers::gemini::Client;
+use rig::{prelude::ProviderClient, providers::gemini::completion::GEMINI_2_5_FLASH_PREVIEW_05_20};
+use std::time::Duration;
+use tracing::{error, info, Level};
+use tracing_subscriber::FmtSubscriber;
 
-    agent.run()?;
+#[tokio::main]
+async fn main() {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::INFO)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
+    info!("Starting Forgeflow Example");
+
+    // 2. Use the specific provider's builder to configure the model
+    let gemini_client = Client::from_env();
+
+    let gemini_agent = gemini_client
+        .agent(GEMINI_2_5_FLASH_PREVIEW_05_20)
+        .preamble("You are a very expert haiku writer")
+        .temperature(0.9)
+        .build();
+
+    // 4. Configure the agent with the generic provider
+    let agent_result = Agent::new()
+        .map(|agent| agent.with_model(Box::new(gemini_agent)))
+        .and_then(|agent| {
+            agent.with_prompt_template(
+                "Write a haiku about the following topic: {{name}}".to_string(),
+            )
+        })
+        .map(|agent| {
+            agent
+                .with_trigger(PollTrigger::new(
+                    "The Rust Programming Language",
+                    Duration::from_secs(12),
+                    true,
+                ))
+                .with_shutdown_handler(shutdown::TimeBasedShutdown::new(Duration::from_secs(12)))
+        });
+
+    match agent_result {
+        Ok(agent) => {
+            if let Err(e) = agent.run().await {
+                error!(error = %e, "Agent execution failed");
+            }
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to build agent");
+        }
+    }
+
+    info!("Forgeflow Example Finished");
 }
