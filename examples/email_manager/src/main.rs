@@ -1,6 +1,8 @@
+use forgeflow::tools::SimpleFileWriter;
 use forgeflow::{agent::Agent, shutdown, triggers::PollTrigger};
 use rig::providers::gemini::Client;
 use rig::{prelude::ProviderClient, providers::gemini::completion::GEMINI_2_5_FLASH_PREVIEW_05_20};
+use std::path::PathBuf;
 use std::time::Duration;
 use tracing::{error, info, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -13,14 +15,17 @@ async fn main() {
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     info!("Starting Forgeflow Example");
+    let output_dir = PathBuf::from("./haikus");
+    let file_writer_actuator = SimpleFileWriter::new(output_dir);
 
     // 2. Use the specific provider's builder to configure the model
     let gemini_client = Client::from_env();
 
     let gemini_agent = gemini_client
         .agent(GEMINI_2_5_FLASH_PREVIEW_05_20)
-        .preamble("You are a very expert haiku writer")
+        .preamble("You are a very expert haiku writer, you will write all the haiku you generate to a file")
         .temperature(0.9)
+        .tool(file_writer_actuator)
         .build();
 
     // 4. Configure the agent with the generic provider
@@ -38,7 +43,7 @@ async fn main() {
                     Duration::from_secs(12),
                     true,
                 ))
-                .with_shutdown_handler(shutdown::TimeBasedShutdown::new(Duration::from_secs(12)))
+                .with_shutdown_handler(shutdown::TimeBasedShutdown::new(Duration::from_secs(10)))
         });
 
     match agent_result {

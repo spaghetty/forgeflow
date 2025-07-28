@@ -14,9 +14,11 @@ async-trait = "0.1.88"
 chrono = "0.4.41"
 handlebars = "6.3.2"
 rig-core = "0.15.1"
-rmcp = "0.3.0"
 serde = "1.0.219"
 serde_json = "1.0.141"
 thiserror = "2.0.12"
 tokio = { version = "1.46.1", features = ["full"] }
+tokio-util = { version = "0.7.15", features = ["full"] }
+tokio-utils = "0.1.2"
 tracing = "0.1.40"
+uuid = { version = "1.17.0", features = ["v4"] }

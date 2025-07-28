@@ -3,9 +3,12 @@ use crate::shutdown::Shutdown;
 use crate::triggers::{Trigger, event::TEvent};
 use handlebars::Handlebars;
 use serde_json::json;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
+//use tokio_util::task::TaskTracker;
 use tracing::{debug, error, info, warn};
 
 #[derive(Error, Debug)]
@@ -26,6 +29,7 @@ pub struct Agent {
     model: Option<Box<dyn LLM>>,
     prompt_template: Option<String>,
     handlebars: Handlebars<'static>,
+    inflight: AtomicUsize,
 }
 
 impl Agent {
@@ -36,6 +40,7 @@ impl Agent {
             model: None,
             prompt_template: None,
             handlebars: Handlebars::new(),
+            inflight: AtomicUsize::new(0),
         })
     }
 
@@ -88,29 +93,31 @@ impl Agent {
         while let Some(event) = event_rx.recv().await {
             info!(event_name = %event.name, "Received event");
 
-            if let (Some(provider_client), Some(template)) =
-                (&mut self.model, &self.prompt_template)
-            {
-                let json_context = &json!(event);
-                match self.handlebars.render_template(template, json_context) {
-                    Ok(prompt) => {
-                        info!("here we are: {}", prompt);
-                        let response = provider_client.prompt(prompt).await;
-                        info!("here we are---: {:?}", response);
-                        match response {
-                            Ok(response) => info!("here we are: {}", response),
-                            Err(x) => error!("trouble here {}", x),
-                        }
-                    }
-                    Err(e) => {
-                        error!(error = %e, "Failed to render prompt template");
-                    }
-                }
-            } else {
-                warn!("No model or prompt template configured, skipping LLM interaction.");
-            }
+            self.process_single_event(event).await;
         }
         debug!("Event loop terminated - no more events to process");
+    }
+
+    async fn process_single_event(&mut self, event: TEvent) {
+        if let (Some(provider_client), Some(template)) = (&mut self.model, &self.prompt_template) {
+            let json_context = &json!(event);
+            match self.handlebars.render_template(template, json_context) {
+                Ok(prompt) => {
+                    self.inflight.fetch_add(1, Ordering::Relaxed);
+                    let response = provider_client.prompt(prompt).await;
+                    self.inflight.fetch_sub(1, Ordering::Relaxed);
+                    match response {
+                        Ok(response) => info!("here we are: {}", response),
+                        Err(x) => error!("trouble here {}", x),
+                    }
+                }
+                Err(e) => {
+                    error!(error = %e, "Failed to render prompt template");
+                }
+            }
+        } else {
+            warn!("No model or prompt template configured, skipping LLM interaction.");
+        }
     }
 
     async fn launch_triggers(
@@ -156,7 +163,6 @@ impl Agent {
             "Sending shutdown signal to all triggers"
         );
         let _ = shutdown_tx.send(());
-
         debug!("Waiting for triggers to terminate");
         for (index, handle) in trigger_handles.into_iter().enumerate() {
             if let Err(e) = handle.await {
@@ -170,6 +176,15 @@ impl Agent {
             }
         }
         info!("All triggers have been shut down");
+        let residual = self.inflight.load(Ordering::Relaxed);
+        if residual != 0 {
+            info!("residual inflight process: {}", residual);
+            tokio::time::sleep(Duration::from_secs(10)).await;
+        }
+        info!(
+            "waited for inflight request to complete, killed {}",
+            self.inflight.load(Ordering::Relaxed)
+        );
     }
 }
 
