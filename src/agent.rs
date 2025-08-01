@@ -99,8 +99,10 @@ impl Agent {
     }
 
     async fn process_single_event(&mut self, event: TEvent) {
+        info!("{:?}", event);
         if let (Some(provider_client), Some(template)) = (&mut self.model, &self.prompt_template) {
             let json_context = &json!(event);
+
             match self.handlebars.render_template(template, json_context) {
                 Ok(prompt) => {
                     self.inflight.fetch_add(1, Ordering::Relaxed);
@@ -108,7 +110,7 @@ impl Agent {
                     self.inflight.fetch_sub(1, Ordering::Relaxed);
                     match response {
                         Ok(response) => info!("here we are: {}", response),
-                        Err(x) => error!("trouble here {}", x),
+                        Err(x) => error!("troubles here {}", x),
                     }
                 }
                 Err(e) => {

@@ -1,7 +1,5 @@
-# In examples/my_example/Cargo.toml
-
 [package]
-name = "email_manager"  # The name of the example package
+name = "gmail_hook"  # The name of the example package
 version = "0.1.0"
 edition = "2021"
 
@@ -13,4 +11,3 @@ rig-core = "0.15.1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-

@@ -1,0 +1,13 @@
+[package]
+name = "email_manager"  # The name of the example package
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Add your library as a dependency using its package name and a path
+forgeflow = { path = "../../" }
+rig-core = "0.15.1"
+# Add any dependencies that ONLY the example needs
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

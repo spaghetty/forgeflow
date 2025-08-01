@@ -58,6 +58,7 @@ impl Trigger for PollTrigger {
                     _ = ticker.tick() => {
                         let event = TEvent {
                             name: event_name.clone(),
+                            payload: None,
                         };
 
                         debug!(trigger_name = %event_name, event_name = %event.name, "Firing event");
