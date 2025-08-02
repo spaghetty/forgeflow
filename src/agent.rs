@@ -1,7 +1,7 @@
 use crate::llm::LLM;
 use crate::shutdown::Shutdown;
 use crate::triggers::{Trigger, event::TEvent};
-use handlebars::Handlebars;
+use crate::utils::{TEngine, TEngineError};
 use serde_json::json;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -18,9 +18,9 @@ pub enum AgentError {
     #[error("Rig error")]
     RigError(),
     #[error("Handlebars template error")]
-    TemplateError(#[from] handlebars::TemplateError),
-    #[error("Handlebars render error")]
-    RenderError(#[from] handlebars::RenderError),
+    TemplateError(#[from] TEngineError),
+    //#[error("Handlebars render error")]
+    //RenderError(#[from] TEngineError),
 }
 
 pub struct Agent {
@@ -28,7 +28,7 @@ pub struct Agent {
     shutdown_handler: Option<Box<dyn Shutdown>>,
     model: Option<Box<dyn LLM>>,
     prompt_template: Option<String>,
-    handlebars: Handlebars<'static>,
+    handlebars: TEngine,
     inflight: AtomicUsize,
 }
 
@@ -39,7 +39,7 @@ impl Agent {
             shutdown_handler: None,
             model: None,
             prompt_template: None,
-            handlebars: Handlebars::new(),
+            handlebars: TEngine::new(),
             inflight: AtomicUsize::new(0),
         })
     }
@@ -99,12 +99,12 @@ impl Agent {
     }
 
     async fn process_single_event(&mut self, event: TEvent) {
-        info!("{:?}", event);
+        //info!("{:?}", event);
         if let (Some(provider_client), Some(template)) = (&mut self.model, &self.prompt_template) {
             let json_context = &json!(event);
-
             match self.handlebars.render_template(template, json_context) {
                 Ok(prompt) => {
+                    info!("Prompt: {}", prompt);
                     self.inflight.fetch_add(1, Ordering::Relaxed);
                     let response = provider_client.prompt(prompt).await;
                     self.inflight.fetch_sub(1, Ordering::Relaxed);

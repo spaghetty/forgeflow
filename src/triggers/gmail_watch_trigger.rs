@@ -1,7 +1,7 @@
 use crate::triggers::{TEvent, Trigger, TriggerError};
 use async_trait::async_trait;
 use google_gmail1::yup_oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
-use google_gmail1::{Gmail, api::Message, api::Scope};
+use google_gmail1::{Gmail, api::Scope};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::{
     client::legacy::Client, client::legacy::connect::HttpConnector, rt::TokioExecutor,
@@ -9,7 +9,7 @@ use hyper_util::{
 use rustls::crypto::{CryptoProvider, ring::default_provider};
 use serde_json::json;
 use std::error::Error;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
@@ -29,17 +29,17 @@ pub struct GConf {
 pub struct GmailWatchTrigger {
     hub: Option<GmailHubType>,
     config: GConf,
-    topic_name: String,
 }
 
 impl GmailWatchTrigger {
-    pub async fn new(topic_name: &str, conf: GConf) -> Result<Self, Box<dyn Error>> {
+    pub async fn new(conf: GConf) -> Result<Self, Box<dyn Error>> {
         //check the file here
-        Ok(Self {
+        let mut resource = Self {
             hub: None,
             config: conf,
-            topic_name: topic_name.to_string(),
-        })
+        };
+        resource.auth().await?;
+        Ok(resource)
     }
 
     pub async fn auth(&mut self) -> Result<(), TriggerError> {
@@ -92,15 +92,13 @@ impl Trigger for GmailWatchTrigger {
     ) -> Result<JoinHandle<()>, TriggerError> {
         let hub = self.hub.clone().unwrap();
         let task_handle = tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(50));
+            let mut interval = tokio::time::interval(Duration::from_secs(120));
             loop {
                 tokio::select! {
                     _ = interval.tick() => {
-                        // In a real implementation, you would check for new emails here.
-                        // For this example, we'll just send a dummy event.
-                        let res_result = hub.users().messages_list("me").doit().await;
-                        let (result, msg_list) = res_result.unwrap();
-                        info!("{:?}", result);
+                        let res_result = hub.users().messages_list("me").q("is:unread").doit().await;
+                        let (_result, msg_list) = res_result.unwrap();
+                        //info!("{:?}", result);
                         if let Some(msgl) = msg_list.messages {
                             for i in msgl {
                                 let msg = hub.users().messages_get("me", i.id.clone().unwrap().as_ref()).add_scope(Scope::Readonly).doit().await.unwrap();
@@ -130,21 +128,22 @@ impl Trigger for GmailWatchTrigger {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     // This is the test function
     #[tokio::test]
     async fn gmail_trigger_handle_event_and_shuts_down() {
         // --- 1. Arrange ---
         // Create the channels that the agent would normally create.
-        let (event_tx, mut event_rx) = mpsc::channel::<TEvent>(10);
-        let (shutdown_tx, shutdown_rx) = broadcast::channel::<()>(1);
+        let (_event_tx, mut _event_rx) = mpsc::channel::<TEvent>(10);
+        let (_shutdown_tx, _shutdown_rx) = broadcast::channel::<()>(1);
 
         let conf = GConf {
             credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
             token_path: Path::new("./tmp/token.json").to_path_buf(),
         };
         // Create the PollTrigger instance.
-        let gtrigger = GmailWatchTrigger::new("INBOX", conf).await;
+        let gtrigger = GmailWatchTrigger::new(conf).await;
 
         let tmp = gtrigger.expect("Something went wrong").auth().await;
         assert!(tmp.is_ok());
