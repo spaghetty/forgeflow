@@ -7,7 +7,7 @@ use tracing::info;
 use uuid::Uuid;
 
 #[derive(Debug, thiserror::Error)]
-pub enum ToolError {
+pub enum FileWriterError {
     #[error("Failed to create directory: {0}")]
     DirectoryCreation(#[from] std::io::Error),
     #[error("File write error: {0}")]

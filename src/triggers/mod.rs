@@ -2,12 +2,13 @@ pub mod event;
 pub mod gmail_watch_trigger;
 pub mod poll_trigger;
 
+use crate::utils::google_auth::AuthError;
 use async_trait::async_trait;
 use thiserror::Error;
 use tokio::sync::{broadcast, mpsc};
 
 use crate::triggers::event::TEvent;
-pub use crate::triggers::gmail_watch_trigger::{GConf, GmailWatchTrigger};
+pub use crate::triggers::gmail_watch_trigger::GmailWatchTrigger;
 pub use crate::triggers::poll_trigger::PollTrigger;
 
 #[derive(Error, Debug)]
@@ -15,7 +16,7 @@ pub enum TriggerError {
     #[error("Error activating the trigger")]
     ActivationError,
     #[error("Error authenticating the trigger")]
-    AuthError,
+    AuthError(#[from] AuthError),
 }
 
 #[async_trait]

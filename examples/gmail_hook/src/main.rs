@@ -1,5 +1,5 @@
-use forgeflow::tools::SimpleFileWriter;
-use forgeflow::{agent::Agent, shutdown, triggers::GConf, triggers::GmailWatchTrigger};
+use forgeflow::tools::{gmail_actions::GmailTool, SimpleFileWriter};
+use forgeflow::{agent::Agent, shutdown, triggers::GmailWatchTrigger, utils::google_auth::GConf};
 use rig::providers::gemini::Client;
 use rig::{prelude::ProviderClient, providers::gemini::completion::GEMINI_2_5_FLASH_PREVIEW_05_20};
 use std::path::{Path, PathBuf};
@@ -19,7 +19,7 @@ async fn main() {
         credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
         token_path: Path::new("./tmp/token.json").to_path_buf(),
     };
-    let trigger = GmailWatchTrigger::new(conf).await.unwrap();
+    let trigger = GmailWatchTrigger::new(conf.clone()).await.unwrap();
     info!("GmailWatchTrigger initialized");
     //let _ = trigger.auth().await;
     info!("GmailWatchTrigger authenticated");
@@ -27,6 +27,8 @@ async fn main() {
     //Instatiante the right tool for the job
     let output_dir = PathBuf::from("./daily_summary");
     let file_writer_actuator = SimpleFileWriter::new(output_dir);
+
+    let gmail_actions = GmailTool::new(conf.clone());
     //Instantiate the rigth model
     let gemini_client = Client::from_env();
 
@@ -38,10 +40,11 @@ async fn main() {
             importants: needs to be read quickly and acted upon
             neutral: needs to be read, relevant information in the mail, but no hurry. no urgent actions involved.
             useless: are mail that can be easyly ignored beacuse the relevant message is already in the summary you are saving.
-            Than you can write the final output in a file.
+            if the message is classifide as useless mark it as read in my inbox and than you can write the final output in a file.
             MANDATORY STRUCTURE OF THE SUMMARY: Subject, Date, Summary, Sender (who is), Email ID, Calassification, Reason for the classification")
         .temperature(0.9)
         .tool(file_writer_actuator)
+        .tool(gmail_actions)
         .build();
 
     let main_agent = Agent::new()
@@ -51,6 +54,7 @@ async fn main() {
         .with_model(Box::new(gemini_agent))
         .with_prompt_template(
             "This is a {{name}}:
+this message id is {{payload.id}}, yous it for acting on the specific email.
  receiveing data {{verbatim payload.payload.headers}}
  content in parts {{verbatimpayload.payload.parts}}"
                 .to_string(),
