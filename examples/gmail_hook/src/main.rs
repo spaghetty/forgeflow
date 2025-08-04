@@ -34,7 +34,12 @@ async fn main() {
         .agent(GEMINI_2_5_FLASH_PREVIEW_05_20)
         .preamble("You are senior assistant and an expert in the technical email format,
             you know that body of an email is formed by multiple parts, each part can be text, attachment or different format of the same body. textual part of the email is encoded in base64 and you need to check all the body parts in a raw email.
-            Your main task is to review emails and try to classify them into spam important and neutral, you need to understand if a mail is new or not and give a fresh summary of the mail situation. than you can write the summary in a file, the summary should have a clear reference to the email so that i can find it back in my inbox")
+            Your main task is to review emails, for me a help me saving time; you need to classify them into useless, important or neutral, consider that:
+            importants: needs to be read quickly and acted upon
+            neutral: needs to be read, relevant information in the mail, but no hurry. no urgent actions involved.
+            useless: are mail that can be easyly ignored beacuse the relevant message is already in the summary you are saving.
+            Than you can write the final output in a file.
+            MANDATORY STRUCTURE OF THE SUMMARY: Subject, Date, Summary, Sender (who is), Email ID, Calassification, Reason for the classification")
         .temperature(0.9)
         .tool(file_writer_actuator)
         .build();
