@@ -19,7 +19,7 @@ pub struct GmailWatchTrigger {
 impl GmailWatchTrigger {
     pub async fn new(conf: GConf) -> Result<Self, Box<dyn Error>> {
         //check the file here
-        let auth = gmail_auth(&conf, &[Scope::Readonly]).await?;
+        let auth = gmail_auth(conf, &[Scope::Readonly]).await?;
         Ok(Self {
             hub: Some(auth),
             //config: conf,
@@ -82,10 +82,10 @@ mod tests {
         let (_event_tx, mut _event_rx) = mpsc::channel::<TEvent>(10);
         let (_shutdown_tx, _shutdown_rx) = broadcast::channel::<()>(1);
 
-        let conf = GConf {
-            credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
-            token_path: Path::new("./tmp/token.json").to_path_buf(),
-        };
+        let conf = GConf::new(
+            Path::new("./tmp/credential.json").to_path_buf(),
+            Path::new("./tmp/token.json").to_path_buf(),
+        );
         // Create the PollTrigger instance.
         let gtrigger = GmailWatchTrigger::new(conf).await;
 

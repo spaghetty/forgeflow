@@ -63,7 +63,7 @@ impl Tool for GmailTool {
         tokio::task::spawn_blocking(move || {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
-                let hub = gmail_auth(&gconf, &[Scope::Modify])
+                let hub = gmail_auth(gconf, &[Scope::Modify])
                     .await
                     .map_err(|e| GmailToolError::GmailAuthError(e.to_string()))?;
 

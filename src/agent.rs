@@ -56,7 +56,7 @@ impl Agent {
         Ok(self)
     }
 
-    pub fn with_trigger(mut self, t: Box<dyn Trigger>) -> Self {
+    pub fn add_trigger(mut self, t: Box<dyn Trigger>) -> Self {
         self.triggers.push(t);
         self
     }

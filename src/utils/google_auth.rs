@@ -6,6 +6,7 @@ use hyper_util::{
 };
 use rustls::crypto::{CryptoProvider, ring::default_provider};
 use std::path::PathBuf;
+use std::sync::Arc;
 use thiserror::Error;
 use tokio_util::bytes;
 use tracing::info;
@@ -21,23 +22,35 @@ pub enum AuthError {
     AuthError,
 }
 
-#[derive(Clone)]
-pub struct GConf {
+#[derive(Clone, Debug)]
+pub struct GConf(Arc<InnerConf>);
+
+#[derive(Clone, Debug)]
+pub struct InnerConf {
     pub credentials_path: PathBuf,
     pub token_path: PathBuf,
 }
 
-pub async fn gmail_auth(conf: &GConf, scopes: &[Scope]) -> Result<GmailHubType, AuthError> {
+impl GConf {
+    pub fn new(credentials_path: PathBuf, token_path: PathBuf) -> GConf {
+        GConf(Arc::new(InnerConf {
+            credentials_path,
+            token_path,
+        }))
+    }
+}
+
+pub async fn gmail_auth(conf: GConf, scopes: &[Scope]) -> Result<GmailHubType, AuthError> {
     info!("Authenticating with Gmail API");
 
     // Read application secret
-    let secret = google_gmail1::yup_oauth2::read_application_secret(&conf.credentials_path)
+    let secret = google_gmail1::yup_oauth2::read_application_secret(&conf.0.credentials_path)
         .await
         .expect("credential file missing");
 
     // Set up OAuth2 authenticator with required Gmail scopes
     let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::HTTPRedirect)
-        .persist_tokens_to_disk(&conf.token_path)
+        .persist_tokens_to_disk(&conf.0.token_path)
         .build()
         .await
         .unwrap();

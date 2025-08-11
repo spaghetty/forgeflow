@@ -38,7 +38,7 @@ async fn main() {
         })
         .map(|agent| {
             agent
-                .with_trigger(PollTrigger::new(
+                .add_trigger(PollTrigger::new(
                     "The Rust Programming Language",
                     Duration::from_secs(12),
                     true,

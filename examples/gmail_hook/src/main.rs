@@ -3,7 +3,7 @@ use forgeflow::{agent::Agent, shutdown, triggers::GmailWatchTrigger, utils::goog
 use rig::providers::gemini::Client;
 use rig::{prelude::ProviderClient, providers::gemini::completion::GEMINI_2_5_FLASH_PREVIEW_05_20};
 use std::path::{Path, PathBuf};
-//use std::time::Duration;
+
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -15,14 +15,12 @@ async fn main() {
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     //Create the trigger using GmailWatchTrigger::new
-    let conf = GConf {
-        credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
-        token_path: Path::new("./tmp/token.json").to_path_buf(),
-    };
+    let conf = GConf::new(
+        Path::new("./tmp/credential.json").to_path_buf(),
+        Path::new("./tmp/token.json").to_path_buf(),
+    );
     let trigger = GmailWatchTrigger::new(conf.clone()).await.unwrap();
     info!("GmailWatchTrigger initialized");
-    //let _ = trigger.auth().await;
-    info!("GmailWatchTrigger authenticated");
 
     //Instatiante the right tool for the job
     let output_dir = PathBuf::from("./daily_summary");
@@ -49,14 +47,14 @@ async fn main() {
 
     let main_agent = Agent::new()
         .unwrap()
-        .with_trigger(Box::new(trigger))
+        .add_trigger(Box::new(trigger))
         .with_shutdown_handler(shutdown::CtrlCShutdown::new())
         .with_model(Box::new(gemini_agent))
         .with_prompt_template(
             "This is a {{name}}:
 this message id is {{payload.id}}, yous it for acting on the specific email.
  receiveing data {{verbatim payload.payload.headers}}
- content in parts {{verbatimpayload.payload.parts}}"
+ content in parts {{verbatim payload.payload.parts}}"
                 .to_string(),
         )
         .unwrap();
