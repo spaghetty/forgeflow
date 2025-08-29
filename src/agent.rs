@@ -1,3 +1,6 @@
+// The `Agent` module provides the core functionality for the Forgeflow framework.
+// It defines the `Agent` struct, which is responsible for managing triggers, interacting with language models, and executing actions using tools.
+
 use crate::llm::LLM;
 use crate::shutdown::Shutdown;
 use crate::triggers::{Trigger, event::TEvent};
@@ -11,28 +14,39 @@ use tokio::task::JoinHandle;
 //use tokio_util::task::TaskTracker;
 use tracing::{debug, error, info, warn};
 
+/// The `AgentError` enum defines the possible errors that can occur within the `Agent`.
 #[derive(Error, Debug)]
 pub enum AgentError {
+    /// An I/O error occurred.
     #[error("I/O error")]
     IoError(#[from] std::io::Error),
+    /// An error occurred within the `rig` crate.
     #[error("Rig error")]
     RigError(),
+    /// An error occurred while rendering a Handlebars template.
     #[error("Handlebars template error")]
     TemplateError(#[from] TEngineError),
-    //#[error("Handlebars render error")]
-    //RenderError(#[from] TEngineError),
 }
 
+/// The `Agent` struct is the central component of the Forgeflow framework.
+/// It is responsible for coordinating the other components and executing the main logic.
 pub struct Agent {
+    /// A vector of triggers that can initiate agent actions.
     triggers: Vec<Box<dyn Trigger>>,
+    /// An optional shutdown handler that can be used to gracefully shut down the agent.
     shutdown_handler: Option<Box<dyn Shutdown>>,
+    /// An optional language model that the agent can use to process events and generate responses.
     model: Option<Box<dyn LLM>>,
+    /// An optional prompt template that the agent can use to generate prompts for the language model.
     prompt_template: Option<String>,
+    /// The Handlebars template engine used by the agent.
     handlebars: TEngine,
+    /// An atomic counter for the number of in-flight requests.
     inflight: AtomicUsize,
 }
 
 impl Agent {
+    /// Creates a new `Agent`.
     pub fn new() -> Result<Self, AgentError> {
         Ok(Agent {
             triggers: Vec::new(),
@@ -44,11 +58,13 @@ impl Agent {
         })
     }
 
+    /// Sets the language model for the agent.
     pub fn with_model(mut self, model: Box<dyn LLM>) -> Self {
         self.model = Some(model);
         self
     }
 
+    /// Sets the prompt template for the agent.
     pub fn with_prompt_template(mut self, template: String) -> Result<Self, AgentError> {
         self.handlebars
             .register_template_string("prompt", &template)?;
@@ -56,16 +72,19 @@ impl Agent {
         Ok(self)
     }
 
+    /// Adds a trigger to the agent.
     pub fn add_trigger(mut self, t: Box<dyn Trigger>) -> Self {
         self.triggers.push(t);
         self
     }
 
+    /// Sets the shutdown handler for the agent.
     pub fn with_shutdown_handler(mut self, handler: impl Shutdown + 'static) -> Self {
         self.shutdown_handler = Some(Box::new(handler));
         self
     }
 
+    /// Runs the agent.
     pub async fn run(mut self) -> Result<(), AgentError> {
         let (_, event_rx, shutdown_tx, trigger_handles) = self.launch_triggers().await;
 
@@ -88,6 +107,7 @@ impl Agent {
         Ok(())
     }
 
+    /// The main event loop for the agent.
     async fn event_loop(&mut self, mut event_rx: mpsc::Receiver<TEvent>) {
         info!("Agent event loop started, waiting for events");
         while let Some(event) = event_rx.recv().await {
@@ -98,8 +118,8 @@ impl Agent {
         debug!("Event loop terminated - no more events to process");
     }
 
+    /// Processes a single event.
     async fn process_single_event(&mut self, event: TEvent) {
-        //info!("{:?}", event);
         if let (Some(provider_client), Some(template)) = (&mut self.model, &self.prompt_template) {
             let json_context = &json!(event);
             match self.handlebars.render_template(template, json_context) {
@@ -122,6 +142,7 @@ impl Agent {
         }
     }
 
+    /// Launches the triggers for the agent.
     async fn launch_triggers(
         &self,
     ) -> (
@@ -155,6 +176,7 @@ impl Agent {
         (event_tx, event_rx, shutdown_tx, trigger_handles)
     }
 
+    /// Shuts down the triggers for the agent.
     async fn shutdown_triggers(
         &self,
         shutdown_tx: broadcast::Sender<()>,

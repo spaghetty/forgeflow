@@ -1,20 +1,30 @@
-use forgeflow::tools::{gmail_actions::GmailTool, SimpleFileWriter};
-use forgeflow::{agent::Agent, shutdown, triggers::GmailWatchTrigger, utils::google_auth::GConf};
-use rig::providers::gemini::Client;
-use rig::{prelude::ProviderClient, providers::gemini::completion::GEMINI_2_5_FLASH_PREVIEW_05_20};
+// This example demonstrates a more complex agent that watches for new emails, uses an LLM to summarize them, and then marks them as read.
+
+use forgeflow::{
+    agent::Agent,
+    shutdown,
+    tools::{SimpleFileWriter, gmail_actions::GmailTool},
+    triggers::GmailWatchTrigger,
+    utils::google_auth::GConf,
+};
+use rig::{
+    prelude::ProviderClient, providers::gemini::Client,
+    providers::gemini::completion::GEMINI_2_5_FLASH_PREVIEW_05_20,
+};
 use std::path::{Path, PathBuf};
 
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() {
+    // Initialize the logger.
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    //Create the trigger using GmailWatchTrigger::new
+    // Create the trigger using GmailWatchTrigger::new
     let conf = GConf::new(
         Path::new("./tmp/credential.json").to_path_buf(),
         Path::new("./tmp/token.json").to_path_buf(),
@@ -45,6 +55,7 @@ async fn main() {
         .tool(gmail_actions)
         .build();
 
+    // Create the agent.
     let main_agent = Agent::new()
         .unwrap()
         .add_trigger(Box::new(trigger))
@@ -59,5 +70,6 @@ this message id is {{payload.id}}, yous it for acting on the specific email.
         )
         .unwrap();
 
+    // Run the agent.
     let _ = main_agent.run().await;
 }

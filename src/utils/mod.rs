@@ -1,3 +1,5 @@
+// The `utils` module provides utility functions for the framework.
+
 pub mod google_auth;
 pub mod template;
 

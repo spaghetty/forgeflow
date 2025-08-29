@@ -1,3 +1,5 @@
+// The `shutdown` module provides a trait for gracefully shutting down the agent.
+
 use async_trait::async_trait;
 use std::time::Duration;
 use tracing::info;
@@ -9,9 +11,11 @@ pub trait Shutdown: Send + Sync {
     async fn wait_for_signal(&mut self);
 }
 
+/// A shutdown handler that triggers a shutdown when a `Ctrl-C` signal is received.
 pub struct CtrlCShutdown;
 
 impl CtrlCShutdown {
+    /// Creates a new `CtrlCShutdown` handler.
     pub fn new() -> Self {
         Self
     }
@@ -28,6 +32,7 @@ impl Shutdown for CtrlCShutdown {
     }
 }
 
+/// A shutdown handler that triggers a shutdown after a specified duration.
 pub struct TimeBasedShutdown {
     duration: Duration,
 }
@@ -48,6 +53,9 @@ impl Shutdown for TimeBasedShutdown {
         );
         // Simply sleep for the specified duration.
         tokio::time::sleep(self.duration).await;
-        info!(duration_secs = self.duration.as_secs(), "Time-based shutdown triggered");
+        info!(
+            duration_secs = self.duration.as_secs(),
+            "Time-based shutdown triggered"
+        );
     }
 }

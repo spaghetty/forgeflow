@@ -1,3 +1,5 @@
+// The `llm` module provides a trait for interacting with language models.
+
 use async_trait::async_trait;
 use rig::{agent::Agent as RigAgent, completion::CompletionModel}; // Alias rig's Agent to avoid name collision
 use thiserror::Error;
@@ -5,6 +7,7 @@ use thiserror::Error;
 /// A custom error type for LLM operations.
 #[derive(Error, Debug)]
 pub enum LLMError {
+    /// An error occurred while prompting the model.
     #[error("Failed to prompt the model: {0}")]
     PromptError(String),
 }

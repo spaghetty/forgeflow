@@ -1,3 +1,5 @@
+// The `tools` module provides a collection of tools that can be used by the agent.
+
 // 1. Declare your actuator files as public sub-modules
 pub mod gmail_actions;
 pub mod simple_file_writer;

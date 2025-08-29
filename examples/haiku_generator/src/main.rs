@@ -1,26 +1,33 @@
-use forgeflow::tools::SimpleFileWriter;
-use forgeflow::{agent::Agent, shutdown, triggers::PollTrigger};
-use rig::providers::gemini::Client;
-use rig::{prelude::ProviderClient, providers::gemini::completion::GEMINI_2_5_FLASH_PREVIEW_05_20};
+// This example demonstrates a simple agent that generates haikus and saves them to a file.
+
+use forgeflow::{agent::Agent, shutdown, tools::SimpleFileWriter, triggers::PollTrigger};
+use rig::{
+    prelude::ProviderClient, providers::gemini::Client,
+    providers::gemini::completion::GEMINI_2_5_FLASH_PREVIEW_05_20,
+};
 use std::path::PathBuf;
 use std::time::Duration;
-use tracing::{error, info, Level};
+use tracing::{Level, error, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() {
+    // Initialize the logger.
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     info!("Starting Forgeflow Example");
+
+    // Create a tool to write the generated haikus to a file.
     let output_dir = PathBuf::from("./haikus");
     let file_writer_actuator = SimpleFileWriter::new(output_dir);
 
-    // 2. Use the specific provider's builder to configure the model
+    // Create a new Gemini client.
     let gemini_client = Client::from_env();
 
+    // Create a new Gemini agent.
     let gemini_agent = gemini_client
         .agent(GEMINI_2_5_FLASH_PREVIEW_05_20)
         .preamble("You are a very expert haiku writer, you will write all the haiku you generate to a file")
@@ -28,7 +35,7 @@ async fn main() {
         .tool(file_writer_actuator)
         .build();
 
-    // 4. Configure the agent with the generic provider
+    // Create the agent.
     let agent_result = Agent::new()
         .map(|agent| agent.with_model(Box::new(gemini_agent)))
         .and_then(|agent| {
@@ -46,6 +53,7 @@ async fn main() {
                 .with_shutdown_handler(shutdown::TimeBasedShutdown::new(Duration::from_secs(10)))
         });
 
+    // Run the agent.
     match agent_result {
         Ok(agent) => {
             if let Err(e) = agent.run().await {

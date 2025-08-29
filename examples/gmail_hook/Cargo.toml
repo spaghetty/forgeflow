@@ -1,7 +1,7 @@
 [package]
-name = "gmail_hook"  # The name of the example package
+name = "gmail_hook" # The name of the example package
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 # Add your library as a dependency using its package name and a path

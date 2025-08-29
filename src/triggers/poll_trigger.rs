@@ -1,3 +1,5 @@
+// The `poll_trigger` module provides a trigger that fires an event at a regular interval.
+
 use crate::triggers::{Trigger, TriggerError, event::TEvent};
 use async_trait::async_trait;
 use std::time::Duration;
@@ -6,13 +8,18 @@ use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use tracing::{debug, info, warn};
 
+/// A trigger that fires an event at a regular interval.
 pub struct PollTrigger {
+    /// The name of the event to fire.
     event_name: String,
+    /// The interval at which to fire the event.
     interval: Duration,
+    /// Whether to fire an event immediately upon launch.
     hot_start: bool,
 }
 
 impl PollTrigger {
+    /// Creates a new `PollTrigger`.
     pub fn new(payload: &str, frequency: Duration, hot_start: bool) -> Box<Self> {
         Box::new(PollTrigger {
             event_name: payload.to_string(),
@@ -24,6 +31,7 @@ impl PollTrigger {
 
 #[async_trait]
 impl Trigger for PollTrigger {
+    /// Launches the trigger's long-running task.
     async fn launch(
         &self,
         tx: mpsc::Sender<TEvent>,

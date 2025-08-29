@@ -1,5 +1,10 @@
-use google_gmail1::yup_oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
-use google_gmail1::{Gmail, api::Scope};
+// The `google_auth` module provides a helper function for authenticating with the Gmail API.
+
+use google_gmail1::{
+    Gmail,
+    api::Scope,
+    yup_oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod},
+};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::{
     client::legacy::Client, client::legacy::connect::HttpConnector, rt::TokioExecutor,
@@ -11,27 +16,38 @@ use thiserror::Error;
 use tokio_util::bytes;
 use tracing::info;
 
+/// A type alias for the HTTPS connector.
 pub type HttpsConnectorType = HttpsConnector<HttpConnector>;
+/// A type alias for the Hyper client.
 pub type HyperClient = Client<HttpsConnectorType, http_body_util::Full<bytes::Bytes>>;
+/// A type alias for the authenticator.
 pub type AuthType = google_gmail1::yup_oauth2::authenticator::Authenticator<HttpsConnectorType>;
+/// A type alias for the Gmail hub.
 pub type GmailHubType = Gmail<HttpsConnectorType>;
 
+/// The `AuthError` enum defines the possible errors that can occur during authentication.
 #[derive(Error, Debug)]
 pub enum AuthError {
+    /// An error occurred while authenticating.
     #[error("Error authenticating the element")]
     AuthError,
 }
 
+/// The `GConf` struct holds the configuration for Google authentication.
 #[derive(Clone, Debug)]
 pub struct GConf(Arc<InnerConf>);
 
+/// The inner configuration for `GConf`.
 #[derive(Clone, Debug)]
 pub struct InnerConf {
+    /// The path to the `credential.json` file.
     pub credentials_path: PathBuf,
+    /// The path to the `token.json` file.
     pub token_path: PathBuf,
 }
 
 impl GConf {
+    /// Creates a new `GConf`.
     pub fn new(credentials_path: PathBuf, token_path: PathBuf) -> GConf {
         GConf(Arc::new(InnerConf {
             credentials_path,
@@ -40,6 +56,7 @@ impl GConf {
     }
 }
 
+/// Authenticates with the Gmail API and returns a `GmailHubType`.
 pub async fn gmail_auth(conf: GConf, scopes: &[Scope]) -> Result<GmailHubType, AuthError> {
     info!("Authenticating with Gmail API");
 

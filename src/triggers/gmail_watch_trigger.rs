@@ -1,4 +1,6 @@
-use crate::triggers::{TEvent, Trigger, TriggerError};
+// The `gmail_watch_trigger` module provides a trigger that watches for new unread emails in a Gmail account.
+
+use crate::triggers::{Trigger, TriggerError, event::TEvent};
 use crate::utils::google_auth::{GConf, GmailHubType, gmail_auth};
 use async_trait::async_trait;
 
@@ -11,24 +13,23 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 
+/// A trigger that watches for new unread emails in a Gmail account.
 pub struct GmailWatchTrigger {
     hub: Option<GmailHubType>,
-    //config: GConf,
 }
 
 impl GmailWatchTrigger {
+    /// Creates a new `GmailWatchTrigger`.
     pub async fn new(conf: GConf) -> Result<Self, Box<dyn Error>> {
         //check the file here
         let auth = gmail_auth(conf, &[Scope::Readonly]).await?;
-        Ok(Self {
-            hub: Some(auth),
-            //config: conf,
-        })
+        Ok(Self { hub: Some(auth) })
     }
 }
 
 #[async_trait]
 impl Trigger for GmailWatchTrigger {
+    /// Launches the trigger's long-running task.
     async fn launch(
         &self,
         tx: mpsc::Sender<TEvent>,
@@ -42,7 +43,6 @@ impl Trigger for GmailWatchTrigger {
                     _ = interval.tick() => {
                         let res_result = hub.users().messages_list("me").q("is:unread").doit().await;
                         let (_result, msg_list) = res_result.unwrap();
-                        //info!("{:?}", result);
                         if let Some(msgl) = msg_list.messages {
                             for i in msgl {
                                 let msg = hub.users().messages_get("me", i.id.clone().unwrap().as_ref()).add_scope(Scope::Readonly).doit().await.unwrap();
