@@ -6,8 +6,9 @@ edition = "2024"
 [dependencies]
 # Add your library as a dependency using its package name and a path
 forgeflow = { path = "../../" }
-rig-core = "0.15.1"
+rig-core = "0.18.2"
 # Add any dependencies that ONLY the example needs
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+serde_json = "1.0.107"

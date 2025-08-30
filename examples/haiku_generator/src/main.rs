@@ -2,9 +2,14 @@
 
 use forgeflow::{agent::Agent, shutdown, tools::SimpleFileWriter, triggers::PollTrigger};
 use rig::{
-    prelude::ProviderClient, providers::gemini::Client,
-    providers::gemini::completion::GEMINI_2_5_FLASH_PREVIEW_05_20,
+    client::CompletionClient,
+    prelude::ProviderClient,
+    providers::gemini::{
+        Client, completion, completion::gemini_api_types::AdditionalParameters,
+        completion::gemini_api_types::GenerationConfig,
+    },
 };
+use serde_json;
 use std::path::PathBuf;
 use std::time::Duration;
 use tracing::{Level, error, info};
@@ -14,7 +19,7 @@ use tracing_subscriber::FmtSubscriber;
 async fn main() {
     // Initialize the logger.
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::DEBUG)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
@@ -26,13 +31,23 @@ async fn main() {
 
     // Create a new Gemini client.
     let gemini_client = Client::from_env();
+    let gen_cfg = GenerationConfig {
+        top_k: Some(1),
+        top_p: Some(0.95),
+        candidate_count: Some(1),
+        ..Default::default()
+    };
+    let cfg = AdditionalParameters::default().with_config(gen_cfg);
 
     // Create a new Gemini agent.
     let gemini_agent = gemini_client
-        .agent(GEMINI_2_5_FLASH_PREVIEW_05_20)
-        .preamble("You are a very expert haiku writer, you will write all the haiku you generate to a file")
+        .agent(completion::GEMINI_2_0_FLASH_LITE)
+        .preamble(
+            "You are an expert haiku writer, you will write all the haiku you generate to a file",
+        )
         .temperature(0.9)
         .tool(file_writer_actuator)
+        .additional_params(serde_json::to_value(cfg).unwrap())
         .build();
 
     // Create the agent.
@@ -50,7 +65,7 @@ async fn main() {
                     Duration::from_secs(12),
                     true,
                 ))
-                .with_shutdown_handler(shutdown::TimeBasedShutdown::new(Duration::from_secs(10)))
+                .with_shutdown_handler(shutdown::TimeBasedShutdown::new(Duration::from_secs(20)))
         });
 
     // Run the agent.

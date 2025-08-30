@@ -1,13 +1,14 @@
 [package]
-name = "email_manager" # The name of the example package
+name = "haiku_generator" # The name of the example package
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 # Add your library as a dependency using its package name and a path
 forgeflow = { path = "../../" }
-rig-core = "0.15.1"
+rig-core = "0.18.2"
 # Add any dependencies that ONLY the example needs
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+serde_json = "1.0.90"

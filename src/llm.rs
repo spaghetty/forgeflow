@@ -3,6 +3,7 @@
 use async_trait::async_trait;
 use rig::{agent::Agent as RigAgent, completion::CompletionModel}; // Alias rig's Agent to avoid name collision
 use thiserror::Error;
+use tracing::debug;
 
 /// A custom error type for LLM operations.
 #[derive(Error, Debug)]
@@ -29,6 +30,9 @@ where
         rig::completion::Prompt::prompt(self, text)
             .await
             .map(|response| response.to_string())
-            .map_err(|e| LLMError::PromptError(e.to_string()))
+            .map_err(|e| {
+                debug!("this is the error: {}", e);
+                LLMError::PromptError(e.to_string())
+            })
     }
 }

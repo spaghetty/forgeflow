@@ -8,8 +8,10 @@ use forgeflow::{
     utils::google_auth::GConf,
 };
 use rig::{
-    prelude::ProviderClient, providers::gemini::Client,
-    providers::gemini::completion::GEMINI_2_5_FLASH_PREVIEW_05_20,
+    client::CompletionClient, prelude::ProviderClient, providers::gemini::Client,
+    providers::gemini::completion,
+    providers::gemini::completion::gemini_api_types::AdditionalParameters,
+    providers::gemini::completion::gemini_api_types::GenerationConfig,
 };
 use std::path::{Path, PathBuf};
 
@@ -20,7 +22,7 @@ use tracing_subscriber::FmtSubscriber;
 async fn main() {
     // Initialize the logger.
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::DEBUG)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
@@ -40,8 +42,16 @@ async fn main() {
     //Instantiate the rigth model
     let gemini_client = Client::from_env();
 
+    let gen_cfg = GenerationConfig {
+        top_k: Some(1),
+        top_p: Some(0.95),
+        candidate_count: Some(1),
+        ..Default::default()
+    };
+    let cfg = AdditionalParameters::default().with_config(gen_cfg);
+
     let gemini_agent = gemini_client
-        .agent(GEMINI_2_5_FLASH_PREVIEW_05_20)
+        .agent(completion::GEMINI_2_0_FLASH_LITE)
         .preamble("You are senior assistant and an expert in the technical email format,
             you know that body of an email is formed by multiple parts, each part can be text, attachment or different format of the same body. textual part of the email is encoded in base64 and you need to check all the body parts in a raw email.
             Your main task is to review emails, for me a help me saving time; you need to classify them into useless, important or neutral, consider that:
@@ -53,6 +63,7 @@ async fn main() {
         .temperature(0.9)
         .tool(file_writer_actuator)
         .tool(gmail_actions)
+        .additional_params(serde_json::to_value(cfg).unwrap())
         .build();
 
     // Create the agent.
@@ -72,4 +83,5 @@ this message id is {{payload.id}}, yous it for acting on the specific email.
 
     // Run the agent.
     let _ = main_agent.run().await;
+    tracing::info!("Agent run completed");
 }

@@ -45,6 +45,67 @@ pub struct Agent {
     inflight: AtomicUsize,
 }
 
+/// The `AgentBuilder` struct is used to construct an `Agent`.
+pub struct AgentBuilder {
+    triggers: Vec<Box<dyn Trigger>>,
+    shutdown_handler: Option<Box<dyn Shutdown>>,
+    model: Option<Box<dyn LLM>>,
+    prompt_template: Option<String>,
+}
+
+impl AgentBuilder {
+    /// Creates a new `AgentBuilder`.
+    pub fn new() -> Self {
+        Self {
+            triggers: Vec::new(),
+            shutdown_handler: None,
+            model: None,
+            prompt_template: None,
+        }
+    }
+
+    /// Sets the language model for the agent.
+    pub fn with_model(mut self, model: Box<dyn LLM>) -> Self {
+        self.model = Some(model);
+        self
+    }
+
+    /// Sets the prompt template for the agent.
+    pub fn with_prompt_template(mut self, template: String) -> Self {
+        self.prompt_template = Some(template);
+        self
+    }
+
+    /// Adds a trigger to the agent.
+    pub fn add_trigger(mut self, t: Box<dyn Trigger>) -> Self {
+        self.triggers.push(t);
+        self
+    }
+
+    /// Sets the shutdown handler for the agent.
+    pub fn with_shutdown_handler(mut self, handler: impl Shutdown + 'static) -> Self {
+        self.shutdown_handler = Some(Box::new(handler));
+        self
+    }
+
+    /// Builds the `Agent`.
+    pub fn build(self) -> Result<Agent, AgentError> {
+        let mut handlebars = TEngine::new();
+        if let Some(template) = &self.prompt_template {
+            handlebars.register_template_string("prompt", template)?;
+        }
+
+        Ok(Agent {
+            triggers: self.triggers,
+            shutdown_handler: self.shutdown_handler,
+            model: self.model,
+            prompt_template: self.prompt_template,
+            handlebars,
+            inflight: AtomicUsize::new(0),
+        })
+    }
+}
+
 impl Agent {
     /// Creates a new `Agent`.
     pub fn new() -> Result<Self, AgentError> {
