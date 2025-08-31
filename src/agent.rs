@@ -12,7 +12,7 @@ use thiserror::Error;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 //use tokio_util::task::TaskTracker;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 /// The `AgentError` enum defines the possible errors that can occur within the `Agent`.
 #[derive(Error, Debug)]
@@ -26,6 +26,9 @@ pub enum AgentError {
     /// An error occurred while rendering a Handlebars template.
     #[error("Handlebars template error")]
     TemplateError(#[from] TEngineError),
+    /// An error occurred while building the agent.
+    #[error("Agent build error: {0}")]
+    BuildError(String),
 }
 
 /// The `Agent` struct is the central component of the Forgeflow framework.
@@ -34,11 +37,11 @@ pub struct Agent {
     /// A vector of triggers that can initiate agent actions.
     triggers: Vec<Box<dyn Trigger>>,
     /// An optional shutdown handler that can be used to gracefully shut down the agent.
-    shutdown_handler: Option<Box<dyn Shutdown>>,
+    shutdown_handler: Box<dyn Shutdown>,
     /// An optional language model that the agent can use to process events and generate responses.
-    model: Option<Box<dyn LLM>>,
+    model: Box<dyn LLM>,
     /// An optional prompt template that the agent can use to generate prompts for the language model.
-    prompt_template: Option<String>,
+    prompt_template: String,
     /// The Handlebars template engine used by the agent.
     handlebars: TEngine,
     /// An atomic counter for the number of in-flight requests.
@@ -90,16 +93,28 @@ impl AgentBuilder {
 
     /// Builds the `Agent`.
     pub fn build(self) -> Result<Agent, AgentError> {
+        if self.model.is_none() {
+            return Err(AgentError::BuildError("A model is required.".to_string()));
+        }
+
         let mut handlebars = TEngine::new();
         if let Some(template) = &self.prompt_template {
             handlebars.register_template_string("prompt", template)?;
+        } else {
+            return Err(AgentError::BuildError(
+                "A prompt template is required.".to_string(),
+            ));
         }
+
+        let shutdown_handler = self
+            .shutdown_handler
+            .unwrap_or_else(|| Box::new(crate::shutdown::CtrlCShutdown::new()));
 
         Ok(Agent {
             triggers: self.triggers,
-            shutdown_handler: self.shutdown_handler,
-            model: self.model,
-            prompt_template: self.prompt_template,
+            shutdown_handler: shutdown_handler,
+            model: self.model.unwrap(),
+            prompt_template: self.prompt_template.unwrap(),
             handlebars,
             inflight: AtomicUsize::new(0),
         })
@@ -107,59 +122,18 @@ impl AgentBuilder {
 }
 
 impl Agent {
-    /// Creates a new `Agent`.
-    pub fn new() -> Result<Self, AgentError> {
-        Ok(Agent {
-            triggers: Vec::new(),
-            shutdown_handler: None,
-            model: None,
-            prompt_template: None,
-            handlebars: TEngine::new(),
-            inflight: AtomicUsize::new(0),
-        })
-    }
-
-    /// Sets the language model for the agent.
-    pub fn with_model(mut self, model: Box<dyn LLM>) -> Self {
-        self.model = Some(model);
-        self
-    }
-
-    /// Sets the prompt template for the agent.
-    pub fn with_prompt_template(mut self, template: String) -> Result<Self, AgentError> {
-        self.handlebars
-            .register_template_string("prompt", &template)?;
-        self.prompt_template = Some(template);
-        Ok(self)
-    }
-
-    /// Adds a trigger to the agent.
-    pub fn add_trigger(mut self, t: Box<dyn Trigger>) -> Self {
-        self.triggers.push(t);
-        self
-    }
-
-    /// Sets the shutdown handler for the agent.
-    pub fn with_shutdown_handler(mut self, handler: impl Shutdown + 'static) -> Self {
-        self.shutdown_handler = Some(Box::new(handler));
-        self
-    }
-
     /// Runs the agent.
     pub async fn run(mut self) -> Result<(), AgentError> {
         let (_, event_rx, shutdown_tx, trigger_handles) = self.launch_triggers().await;
+        let mut shutdown_handler = self.shutdown_handler.clone();
 
-        if let Some(mut handler) = self.shutdown_handler.take() {
-            tokio::select! {
-                _ = self.event_loop(event_rx) => {
-                    info!("Event loop completed normally");
-                },
-                _ = handler.wait_for_signal() => {
-                    info!("External shutdown signal triggered termination");
-                }
+        tokio::select! {
+            _ = self.event_loop(event_rx) => {
+                info!("Event loop completed normally");
+            },
+            _ = shutdown_handler.wait_for_signal() => {
+                info!("External shutdown signal triggered termination");
             }
-        } else {
-            self.event_loop(event_rx).await;
         }
 
         self.shutdown_triggers(shutdown_tx, trigger_handles).await;
@@ -181,25 +155,23 @@ impl Agent {
 
     /// Processes a single event.
     async fn process_single_event(&mut self, event: TEvent) {
-        if let (Some(provider_client), Some(template)) = (&mut self.model, &self.prompt_template) {
-            let json_context = &json!(event);
-            match self.handlebars.render_template(template, json_context) {
-                Ok(prompt) => {
-                    info!("Prompt: {}", prompt);
-                    self.inflight.fetch_add(1, Ordering::Relaxed);
-                    let response = provider_client.prompt(prompt).await;
-                    self.inflight.fetch_sub(1, Ordering::Relaxed);
-                    match response {
-                        Ok(response) => info!("here we are: {}", response),
-                        Err(x) => error!("troubles here {}", x),
-                    }
-                }
-                Err(e) => {
-                    error!(error = %e, "Failed to render prompt template");
+        let provider_client = &mut self.model;
+        let template = &self.prompt_template;
+        let json_context = &json!(event);
+        match self.handlebars.render_template(template, json_context) {
+            Ok(prompt) => {
+                info!("Prompt: {}", prompt);
+                self.inflight.fetch_add(1, Ordering::Relaxed);
+                let response = provider_client.prompt(prompt).await;
+                self.inflight.fetch_sub(1, Ordering::Relaxed);
+                match response {
+                    Ok(response) => info!("here we are: {}", response),
+                    Err(x) => error!("troubles here {}", x),
                 }
             }
-        } else {
-            warn!("No model or prompt template configured, skipping LLM interaction.");
+            Err(e) => {
+                error!(error = %e, "Failed to render prompt template");
+            }
         }
     }
 

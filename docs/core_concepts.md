@@ -12,7 +12,7 @@ The `Agent` is the heart of the framework. It is responsible for:
 *   **Using tools:** The agent can be equipped with tools to perform actions based on the LLM's responses.
 *   **Graceful shutdown:** The agent can be shut down gracefully using a shutdown handler.
 
-To create a new agent, you use the `Agent::new()` method. You can then chain methods to configure the agent with triggers, a model, a prompt template, and a shutdown handler.
+To create a new agent, you use the `AgentBuilder::new()` method. You can then chain methods to configure the agent with triggers, a model, a prompt template, and a shutdown handler, and finally call the `build()` method to create the agent.
 
 ## Triggers
 

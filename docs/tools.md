@@ -36,3 +36,17 @@ let conf = GConf::new(
 );
 let gmail_actions = GmailTool::new(conf.clone());
 ```
+
+## `DailySummaryWriter`
+
+This tool writes content to a file in a designated directory. The file will be named with the current date (e.g., YYYY-MM-DD.txt). If the file for the current date doesn't exist, it will be created. If the file already exists, the content will be appended to it. Each entry will be separated by a line of `============`.
+
+### Example
+
+```rust
+use forgeflow::tools::DailySummaryWriter;
+use std::path::PathBuf;
+
+let output_dir = PathBuf::from("./daily_summary");
+let summary_writer = DailySummaryWriter::new(output_dir);
+```

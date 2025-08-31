@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 # Add your library as a dependency using its package name and a path
 forgeflow = { path = "../../" }
+prompt-crafter = { path = "../../prompt-crafter" }
 rig-core = "0.18.2"
 # Add any dependencies that ONLY the example needs
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

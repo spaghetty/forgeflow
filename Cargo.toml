@@ -8,6 +8,7 @@ members = [
     ".",                        # The root package (your library)
     "examples/gmail_hook",
     "examples/haiku_generator",
+    "prompt-crafter",
 ]
 
 [dependencies]
@@ -16,6 +17,7 @@ chrono = "0.4.41"
 google-gmail1 = "6.0.0"
 handlebars = "6.3.2"
 http-body-util = { version = "0.1.3", features = ["full"] }
+humantime = "2.1.0"
 hyper = { version = "1.6.0", features = ["client", "full", "http1", "http2"] }
 hyper-rustls = "0.27.7"
 hyper-util = { version = "0.1.16", features = [
@@ -26,6 +28,7 @@ hyper-util = { version = "0.1.16", features = [
     "tokio",
 ] }
 rig-core = "0.18.2"
+tokio-retry = "0.3.0"
 rustls = "0.23.29"
 serde = "1.0.219"
 serde_json = "1.0.141"
@@ -37,3 +40,6 @@ tokio-utils = "0.1.2"
 tracing = "0.1.40"
 uuid = { version = "1.17.0", features = ["v4"] }
 yup-oauth2 = "12.1.0"
+
+[dev-dependencies]
+tempfile = "3.10.1"

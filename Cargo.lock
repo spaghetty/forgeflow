@@ -584,6 +584,7 @@ dependencies = [
  "google-gmail1",
  "handlebars",
  "http-body-util",
+ "humantime",
  "hyper",
  "hyper-rustls",
  "hyper-util",
@@ -592,8 +593,10 @@ dependencies = [
  "serde",
  "serde_json",
  "teloxide-core",
+ "tempfile",
  "thiserror 2.0.16",
  "tokio",
+ "tokio-retry",
  "tokio-util",
  "tokio-utils",
  "tracing",
@@ -761,6 +764,7 @@ name = "gmail_hook"
 version = "0.1.0"
 dependencies = [
  "forgeflow",
+ "prompt-crafter",
  "rig-core",
  "serde_json",
  "tokio",
@@ -937,6 +941,12 @@ name = "httpdate"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
+
+[[package]]
+name = "humantime"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b112acc8b3adf4b107a8ec20977da0273a8c386765a3ec0229bd500a1443f9f"
 
 [[package]]
 name = "hyper"
@@ -1682,6 +1692,10 @@ checksum = "89ae43fd86e4158d6db51ad8e2b80f313af9cc74f5c0e03ccb87de09998732de"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "prompt-crafter"
+version = "0.1.0"
 
 [[package]]
 name = "psm"
@@ -2552,6 +2566,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbae76ab933c85776efabc971569dd6119c580d8f5d448769dec1764bf796ef2"
 dependencies = [
  "native-tls",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-retry"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f57eb36ecbe0fc510036adff84824dd3c24bb781e21bfa67b69d556aa85214f"
+dependencies = [
+ "pin-project",
+ "rand",
  "tokio",
 ]
 

@@ -4,14 +4,35 @@ use async_trait::async_trait;
 use std::time::Duration;
 use tracing::info;
 
+pub trait ShutdownClone {
+    fn clone_box(&self) -> Box<dyn Shutdown>;
+}
+
+// 2. Implement the helper trait for any type that is `Shutdown` and `Clone`
+impl<T> ShutdownClone for T
+where
+    T: 'static + Shutdown + Clone,
+{
+    fn clone_box(&self) -> Box<dyn Shutdown> {
+        Box::new(self.clone())
+    }
+}
+
 /// A trait for sources that can trigger a graceful shutdown of the agent.
 #[async_trait]
-pub trait Shutdown: Send + Sync {
+pub trait Shutdown: Send + Sync + ShutdownClone {
     /// This future resolves when a shutdown signal is received.
     async fn wait_for_signal(&mut self);
 }
 
+// 4. Implement Clone for the trait object
+impl Clone for Box<dyn Shutdown> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
 /// A shutdown handler that triggers a shutdown when a `Ctrl-C` signal is received.
+#[derive(Clone)]
 pub struct CtrlCShutdown;
 
 impl CtrlCShutdown {
@@ -33,6 +54,7 @@ impl Shutdown for CtrlCShutdown {
 }
 
 /// A shutdown handler that triggers a shutdown after a specified duration.
+#[derive(Clone)]
 pub struct TimeBasedShutdown {
     duration: Duration,
 }

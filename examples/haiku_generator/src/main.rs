@@ -1,6 +1,6 @@
 // This example demonstrates a simple agent that generates haikus and saves them to a file.
 
-use forgeflow::{agent::Agent, shutdown, tools::SimpleFileWriter, triggers::PollTrigger};
+use forgeflow::{agent::AgentBuilder, shutdown, tools::SimpleFileWriter, triggers::PollTrigger};
 use rig::{
     client::CompletionClient,
     prelude::ProviderClient,
@@ -51,22 +51,16 @@ async fn main() {
         .build();
 
     // Create the agent.
-    let agent_result = Agent::new()
-        .map(|agent| agent.with_model(Box::new(gemini_agent)))
-        .and_then(|agent| {
-            agent.with_prompt_template(
-                "Write a haiku about the following topic: {{name}}".to_string(),
-            )
-        })
-        .map(|agent| {
-            agent
-                .add_trigger(PollTrigger::new(
-                    "The Rust Programming Language",
-                    Duration::from_secs(12),
-                    true,
-                ))
-                .with_shutdown_handler(shutdown::TimeBasedShutdown::new(Duration::from_secs(20)))
-        });
+    let agent_result = AgentBuilder::new()
+        .with_model(Box::new(gemini_agent))
+        .with_prompt_template("Write a haiku about the following topic: {{name}}".to_string())
+        .add_trigger(PollTrigger::new(
+            "The Rust Programming Language",
+            Duration::from_secs(12),
+            true,
+        ))
+        .with_shutdown_handler(shutdown::TimeBasedShutdown::new(Duration::from_secs(20)))
+        .build();
 
     // Run the agent.
     match agent_result {
