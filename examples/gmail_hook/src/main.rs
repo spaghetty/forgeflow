@@ -1,8 +1,20 @@
 // This example demonstrates a more complex agent that watches for new emails, uses an LLM to summarize them, and then marks them as read.
+//
+// Key features:
+// - Gmail API integration for watching new emails
+// - LLM-powered email summarization and classification
+// - Automatic retry logic for handling API rate limits (429 errors)
+// - Daily summary generation and email management
+//
+// The RetryableLLM wrapper automatically handles rate limiting by:
+// - Detecting 429 (rate limit) errors from the Gemini API
+// - Implementing exponential backoff with jitter
+// - Respecting retry delay hints from Google API responses
+// - Only retrying on transient errors, not permanent failures
 
 use forgeflow::{
     agent::AgentBuilder,
-    //llm::retry::RetryableLLM,
+    llm::retry::RetryableLLM,
     shutdown,
     tools::{DailySummaryWriter, gmail_actions::GmailTool},
     triggers::GmailWatchTrigger,
@@ -85,13 +97,21 @@ async fn main() {
         .additional_params(serde_json::to_value(cfg).unwrap())
         .build();
 
-    //let retryable_gemini_agent = RetryableLLM::new(gemini_agent, 3);
+    // Wrap the Gemini agent with retry logic to handle rate limiting (429 errors)
+    // This is crucial for production email processing where rate limits are common
+    // The wrapper will:
+    // - Automatically retry on 429 rate limit errors up to 3 times
+    // - Use exponential backoff with jitter to avoid thundering herd issues
+    // - Respect any retry delay hints provided by the Gemini API
+    // - Immediately fail on permanent errors (4xx/5xx except 429)
+    let retryable_gemini_agent = RetryableLLM::new(gemini_agent, 3);
+    info!("Created RetryableLLM wrapper with 3 retry attempts for rate limiting");
 
     // Create the agent.
     let agent_result = AgentBuilder::new()
         .add_trigger(Box::new(trigger))
         .with_shutdown_handler(shutdown::CtrlCShutdown::new())
-        .with_model(Box::new(gemini_agent))
+        .with_model(Box::new(retryable_gemini_agent))
         .with_prompt_template(
             "This is a {{name}}:\nthis message id is {{payload.id}}, yous it for acting on the specific email.\n receiveing data {{verbatim payload.payload.headers}}\n content in parts {{verbatim payload.payload.parts}}"
                 .to_string(),

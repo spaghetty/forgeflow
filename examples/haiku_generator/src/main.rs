@@ -1,5 +1,4 @@
 // This example demonstrates a simple agent that generates haikus and saves them to a file.
-
 use forgeflow::{agent::AgentBuilder, shutdown, tools::SimpleFileWriter, triggers::PollTrigger};
 use rig::{
     client::CompletionClient,

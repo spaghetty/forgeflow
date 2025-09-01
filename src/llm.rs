@@ -1,4 +1,4 @@
-//pub mod retry;
+pub mod retry;
 
 // The `llm` module provides a trait for interacting with language models.
 
