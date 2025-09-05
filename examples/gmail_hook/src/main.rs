@@ -14,7 +14,7 @@
 
 use forgeflow::{
     agent::AgentBuilder,
-    llm::retry::RetryableLLM,
+    llm::decorators::RetryableLLM,
     shutdown,
     tools::{DailySummaryWriter, gmail_actions::GmailTool},
     triggers::GmailWatchTrigger,
@@ -113,7 +113,7 @@ async fn main() {
         .with_shutdown_handler(shutdown::CtrlCShutdown::new())
         .with_model(Box::new(retryable_gemini_agent))
         .with_prompt_template(
-            "This is a {{name}}:\nthis message id is {{payload.id}}, yous it for acting on the specific email.\n receiveing data {{verbatim payload.payload.headers}}\n content in parts {{verbatim payload.payload.parts}}"
+            "This is a {{name}}:\nthis message id is {{payload.id}}, use it for acting on the specific email.\n receiveing data {{verbatim payload.payload.headers}}\n content in parts {{verbatim payload.payload.parts}}"
                 .to_string(),
         )
         .build();

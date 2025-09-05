@@ -1,40 +1,76 @@
-pub mod retry;
+//! # ForgeFlow LLM Module
+//!
+//! This module provides a unified interface for working with Language Model (LLM) providers
+//! in the ForgeFlow framework. It includes:
+//!
+//! - Core `LLM` trait for unified LLM interactions
+//! - Configuration types for LLM behavior (retry, etc.)
+//! - Decorators for adding functionality (retry, caching, metrics, etc.)
+//! - Adapters for third-party LLM libraries
+//! - Factory for transparent LLM creation with decorators
+//!
+//! # Quick Start
+//!
+//! ```rust
+//! use forgeflow::llm::{LLM, LLMError};
+//! use forgeflow::agent::AgentBuilder;
+//!
+//! // Any LLM that implements the LLM trait can be used
+//! let llm: Box<dyn LLM> = Box::new(your_llm_implementation);
+//!
+//! // The AgentBuilder will automatically add retry by default
+//! let agent = AgentBuilder::new()
+//!     .with_model(llm)  // Retry added automatically
+//!     .with_prompt_template("{{prompt}}")
+//!     .build()?;
+//! ```
+//!
+//! # Manual Decorator Usage
+//!
+//! For advanced users who want explicit control:
+//!
+//! ```rust
+//! use forgeflow::llm::{LLM, RetryConfig, decorators::RetryableLLM};
+//!
+//! // Manual retry wrapping
+//! let base_llm = your_llm_implementation;
+//! let retryable_llm = RetryableLLM::new(base_llm, 3);
+//! let llm: Box<dyn LLM> = Box::new(retryable_llm);
+//! ```
 
-// The `llm` module provides a trait for interacting with language models.
+// Core modules
+pub mod core;
+pub mod config;
 
-use async_trait::async_trait;
-use rig::{agent::Agent as RigAgent, completion::CompletionModel}; // Alias rig's Agent to avoid name collision
-use thiserror::Error;
-use tracing::debug;
+// Implementation modules  
+pub mod adapters;
+pub mod decorators;
+pub mod factory;
 
-/// A custom error type for LLM operations.
-#[derive(Error, Debug)]
-pub enum LLMError {
-    /// An error occurred while prompting the model.
-    #[error("Failed to prompt the model: {0}")]
-    PromptError(String),
-}
+// Legacy module (for backward compatibility - keep original retry.rs for now)
+mod retry;
 
-/// A trait that defines the contract for any LLM processor our agent can use.
-#[async_trait]
-pub trait LLM: Send + Sync {
-    /// Sends a text prompt to the language model and gets a response.
-    async fn prompt(&mut self, text: String) -> Result<String, LLMError>;
-}
+// === Core Exports ===
+// These are the main types users should interact with
+pub use core::{LLM, LLMError};
+pub use config::{RetryConfig, RetryStrategy};
 
-/// The adapter implementation. This teaches our `LLM` trait how to use a `rig::Agent`.
-#[async_trait]
-impl<M> LLM for RigAgent<M>
-where
-    M: CompletionModel,
-{
-    async fn prompt(&mut self, text: String) -> Result<String, LLMError> {
-        rig::completion::Prompt::prompt(self, text)
-            .await
-            .map(|response| response.to_string())
-            .map_err(|e| {
-                debug!("this is the error: {}", e);
-                LLMError::PromptError(e.to_string())
-            })
-    }
-}
+// === Factory (Internal) ===
+// Factory is used internally by AgentBuilder
+pub(crate) use factory::LLMFactory;
+
+// === Decorator Exports ===
+// For users who want explicit decorator control
+pub use decorators::{RetryableLLM, ManualRetryLLM};
+
+// === Legacy Exports (Deprecated) ===
+// Maintain backward compatibility while guiding users to new patterns
+#[deprecated(
+    since = "0.2.0", 
+    note = "Use AgentBuilder::with_retry() for automatic retry, or decorators::RetryableLLM for manual control"
+)]
+pub use retry::{RetryableLLM as LegacyRetryableLLM, ManualRetryLLM as LegacyManualRetryLLM};
+
+// === Adapter Re-exports ===
+// Automatically available - third-party LLM integrations work transparently
+// No explicit exports needed as they implement LLM trait via adapter pattern
