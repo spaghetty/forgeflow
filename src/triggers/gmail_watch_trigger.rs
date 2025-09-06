@@ -22,8 +22,13 @@ impl GmailWatchTrigger {
     /// Creates a new `GmailWatchTrigger`.
     pub async fn new(conf: GConf) -> Result<Self, Box<dyn Error>> {
         //check the file here
-        let auth = gmail_auth(conf, &[Scope::Readonly]).await?;
+        let auth = gmail_auth(conf).await?;
         Ok(Self { hub: Some(auth) })
+    }
+
+    /// Returns the scopes required by this trigger.
+    pub fn scopes() -> &'static [Scope] {
+        &[Scope::Readonly]
     }
 }
 
@@ -72,7 +77,9 @@ impl Trigger for GmailWatchTrigger {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::google_auth::InnerConf;
     use std::path::Path;
+    use std::sync::Arc;
 
     // This is the test function
     #[tokio::test]
@@ -82,10 +89,12 @@ mod tests {
         let (event_tx, mut _event_rx) = mpsc::channel::<TEvent>(10);
         let (shutdown_tx, shutdown_rx) = broadcast::channel::<()>(1);
 
-        let conf = GConf::new(
-            Path::new("./tmp/credential.json").to_path_buf(),
-            Path::new("./tmp/token.json").to_path_buf(),
-        );
+        let conf = GConf::from(Arc::new(InnerConf {
+            credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
+            token_path: Path::new("./tmp/token.json").to_path_buf(),
+            flow: Default::default(),
+            scopes: vec![Scope::Readonly.as_ref().to_string()],
+        }));
         // Create the PollTrigger instance.
         let gtrigger = GmailWatchTrigger::new(conf).await;
 

@@ -39,6 +39,11 @@ impl GmailTool {
     pub fn new(gconf: GConf) -> Self {
         Self { gconf }
     }
+
+    /// Returns the scopes required by this tool.
+    pub fn scopes() -> &'static [Scope] {
+        &[Scope::Modify]
+    }
 }
 
 impl Tool for GmailTool {
@@ -75,7 +80,7 @@ impl Tool for GmailTool {
         tokio::task::spawn_blocking(move || {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
-                let hub = gmail_auth(gconf, &[Scope::Modify])
+                let hub = gmail_auth(gconf)
                     .await
                     .map_err(|e| GmailToolError::GmailAuthError(e.to_string()))?;
 
