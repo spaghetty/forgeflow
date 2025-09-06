@@ -47,6 +47,9 @@ pub enum GoogleAuthFlow {
     Redirect {
         /// The port to use for the redirect server.
         port: Option<u16>,
+        /// Whether to open the browser automatically.
+        open_browser: bool,
+
     },
     /// The interactive flow.
     Interactive {
@@ -57,7 +60,11 @@ pub enum GoogleAuthFlow {
 
 impl Default for GoogleAuthFlow {
     fn default() -> Self {
-        GoogleAuthFlow::Redirect { port: None }
+        GoogleAuthFlow::Redirect {
+            port: None,
+            open_browser: false,
+        }
+
     }
 }
 
@@ -131,22 +138,25 @@ pub async fn gmail_auth(conf: GConf, scopes: &[Scope]) -> Result<GmailHubType, A
         .await
         .expect("credential file missing");
 
-    let return_method = match conf.0.flow {
-        GoogleAuthFlow::Redirect { port } => match port {
-            Some(port) => InstalledFlowReturnMethod::HTTPPortRedirect(port),
-            None => InstalledFlowReturnMethod::HTTPRedirect,
-        },
-        GoogleAuthFlow::Interactive { .. } => InstalledFlowReturnMethod::Interactive,
+    let (return_method, open_browser) = match conf.0.flow {
+        GoogleAuthFlow::Redirect { port, open_browser } => (
+            match port {
+                Some(port) => InstalledFlowReturnMethod::HTTPPortRedirect(port),
+                None => InstalledFlowReturnMethod::HTTPRedirect,
+            },
+            open_browser,
+        ),
+        GoogleAuthFlow::Interactive { open_browser } => {
+            (InstalledFlowReturnMethod::Interactive, open_browser)
+        }
     };
 
     // Set up OAuth2 authenticator with required Gmail scopes
     let mut builder = InstalledFlowAuthenticator::builder(secret, return_method)
         .persist_tokens_to_disk(&conf.0.token_path);
 
-    if let GoogleAuthFlow::Interactive { open_browser } = conf.0.flow {
-        if open_browser {
-            builder = builder.flow_delegate(Box::new(InstalledFlowBrowserDelegate::default()));
-        }
+    if open_browser {
+        builder = builder.flow_delegate(Box::new(InstalledFlowBrowserDelegate::default()));
     }
 
     let auth = builder.build().await.unwrap();

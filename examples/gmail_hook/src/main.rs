@@ -49,7 +49,11 @@ async fn main() {
     let conf = GConf::from(Arc::new(InnerConf {
         credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
         token_path: Path::new("./tmp/token.json").to_path_buf(),
-        flow: GoogleAuthFlow::Interactive { open_browser: true },
+        configurable-oauth-flow
+        flow: GoogleAuthFlow::Redirect {
+            port: None,
+            open_browser: true,
+        },
     }));
     let trigger = GmailWatchTrigger::new(conf.clone()).await.unwrap();
     info!("GmailWatchTrigger initialized");
