@@ -39,21 +39,18 @@
 //! ```
 
 // Core modules
-pub mod core;
 pub mod config;
+pub mod core;
 
-// Implementation modules  
+// Implementation modules
 pub mod adapters;
 pub mod decorators;
 pub mod factory;
 
-// Legacy module (for backward compatibility - keep original retry.rs for now)
-mod retry;
-
 // === Core Exports ===
 // These are the main types users should interact with
-pub use core::{LLM, LLMError};
 pub use config::{RetryConfig, RetryStrategy};
+pub use core::{LLM, LLMError};
 
 // === Factory (Internal) ===
 // Factory is used internally by AgentBuilder
@@ -61,16 +58,4 @@ pub(crate) use factory::LLMFactory;
 
 // === Decorator Exports ===
 // For users who want explicit decorator control
-pub use decorators::{RetryableLLM, ManualRetryLLM};
-
-// === Legacy Exports (Deprecated) ===
-// Maintain backward compatibility while guiding users to new patterns
-#[deprecated(
-    since = "0.2.0", 
-    note = "Use AgentBuilder::with_retry() for automatic retry, or decorators::RetryableLLM for manual control"
-)]
-pub use retry::{RetryableLLM as LegacyRetryableLLM, ManualRetryLLM as LegacyManualRetryLLM};
-
-// === Adapter Re-exports ===
-// Automatically available - third-party LLM integrations work transparently
-// No explicit exports needed as they implement LLM trait via adapter pattern
+pub use decorators::{ManualRetryLLM, RetryableLLM};

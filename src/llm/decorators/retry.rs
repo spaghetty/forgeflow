@@ -123,12 +123,9 @@ impl<L: LLM> RetryableLLM<L> {
     fn should_retry(error: &LLMError) -> bool {
         let error_str = error.to_string();
 
-        // Extract JSON from LLMError which wraps it with "Failed to prompt the model: "
-        let json_str = if error_str.starts_with("Failed to prompt the model: ") {
-            &error_str["Failed to prompt the model: ".len()..]
-        } else {
-            &error_str
-        };
+        let json_str = error_str
+            .strip_prefix("Failed to prompt the model: ")
+            .unwrap_or(&error_str);
 
         if let Ok(json) = serde_json::from_str::<Value>(json_str) {
             if let Some(code) = json["error"]["code"].as_i64() {
@@ -150,12 +147,9 @@ impl<L: LLM> RetryableLLM<L> {
     async fn handle_retry_delay(error: &LLMError) {
         let error_str = error.to_string();
 
-        // Extract JSON from LLMError which wraps it with "Failed to prompt the model: "
-        let json_str = if error_str.starts_with("Failed to prompt the model: ") {
-            &error_str["Failed to prompt the model: ".len()..]
-        } else {
-            &error_str
-        };
+        let json_str = error_str
+            .strip_prefix("Failed to prompt the model: ")
+            .unwrap_or(&error_str);
 
         if let Ok(json) = serde_json::from_str::<Value>(json_str) {
             if let Some(details) = json["error"]["details"].as_array() {
@@ -276,12 +270,9 @@ impl<L: LLM> ManualRetryLLM<L> {
     fn should_retry(error: &LLMError) -> bool {
         let error_str = error.to_string();
 
-        // Extract JSON from LLMError which wraps it with "Failed to prompt the model: "
-        let json_str = if error_str.starts_with("Failed to prompt the model: ") {
-            &error_str["Failed to prompt the model: ".len()..]
-        } else {
-            &error_str
-        };
+        let json_str = error_str
+            .strip_prefix("Failed to prompt the model: ")
+            .unwrap_or(&error_str);
 
         if let Ok(json) = serde_json::from_str::<Value>(json_str) {
             if let Some(code) = json["error"]["code"].as_i64() {
@@ -305,12 +296,9 @@ impl<L: LLM> ManualRetryLLM<L> {
         let error_str = error.to_string();
         let mut delay = default_delay;
 
-        // Extract JSON from LLMError which wraps it with "Failed to prompt the model: "
-        let json_str = if error_str.starts_with("Failed to prompt the model: ") {
-            &error_str["Failed to prompt the model: ".len()..]
-        } else {
-            &error_str
-        };
+        let json_str = error_str
+            .strip_prefix("Failed to prompt the model: ")
+            .unwrap_or(&error_str);
 
         if let Ok(json) = serde_json::from_str::<Value>(json_str) {
             if let Some(details) = json["error"]["details"].as_array() {
@@ -361,7 +349,7 @@ impl<L: LLM + Send + Sync> LLM for ManualRetryLLM<L> {
 }
 
 /// A retry decorator specifically designed for boxed LLM trait objects.
-/// 
+///
 /// This is different from RetryableLLM which works with concrete types.
 /// BoxedRetryLLM wraps a Box<dyn LLM> and adds retry functionality.
 /// This decorator is typically used internally by the LLM factory.
@@ -373,19 +361,19 @@ pub struct BoxedRetryLLM {
 impl BoxedRetryLLM {
     /// Create a new BoxedRetryLLM wrapper.
     pub fn new(inner: Box<dyn LLM>, max_attempts: usize) -> Self {
-        Self { inner, max_attempts }
+        Self {
+            inner,
+            max_attempts,
+        }
     }
 
     /// Determines if an error should be retried based on the error content.
     fn should_retry(error: &LLMError) -> bool {
         let error_str = error.to_string();
 
-        // Extract JSON from LLMError which wraps it with "Failed to prompt the model: "
-        let json_str = if error_str.starts_with("Failed to prompt the model: ") {
-            &error_str["Failed to prompt the model: ".len()..]
-        } else {
-            &error_str
-        };
+        let json_str = error_str
+            .strip_prefix("Failed to prompt the model: ")
+            .unwrap_or(&error_str);
 
         if let Ok(json) = serde_json::from_str::<Value>(json_str) {
             if let Some(code) = json["error"]["code"].as_i64() {
@@ -399,12 +387,9 @@ impl BoxedRetryLLM {
     async fn handle_retry_delay(error: &LLMError) {
         let error_str = error.to_string();
 
-        // Extract JSON from LLMError which wraps it with "Failed to prompt the model: "
-        let json_str = if error_str.starts_with("Failed to prompt the model: ") {
-            &error_str["Failed to prompt the model: ".len()..]
-        } else {
-            &error_str
-        };
+        let json_str = error_str
+            .strip_prefix("Failed to prompt the model: ")
+            .unwrap_or(&error_str);
 
         if let Ok(json) = serde_json::from_str::<Value>(json_str) {
             if let Some(details) = json["error"]["details"].as_array() {

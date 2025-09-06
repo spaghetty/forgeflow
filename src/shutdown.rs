@@ -35,6 +35,12 @@ impl Clone for Box<dyn Shutdown> {
 #[derive(Clone)]
 pub struct CtrlCShutdown;
 
+impl Default for CtrlCShutdown {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CtrlCShutdown {
     /// Creates a new `CtrlCShutdown` handler.
     pub fn new() -> Self {

@@ -1,6 +1,5 @@
 // The `Agent` module provides the core functionality for the Forgeflow framework.
 // It defines the `Agent` struct, which is responsible for managing triggers, interacting with language models, and executing actions using tools.
-
 use crate::llm::{LLM, LLMFactory, RetryConfig};
 use crate::shutdown::Shutdown;
 use crate::triggers::{Trigger, event::TEvent};
@@ -57,6 +56,12 @@ pub struct AgentBuilder {
     retry_config: Option<RetryConfig>,
 }
 
+impl Default for AgentBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AgentBuilder {
     /// Creates a new `AgentBuilder`.
     pub fn new() -> Self {
@@ -94,7 +99,7 @@ impl AgentBuilder {
     }
 
     /// Enable retry with default configuration.
-    /// 
+    ///
     /// This enables automatic retry for rate limit (429) errors with sensible defaults:
     /// - 3 retry attempts
     /// - 1 second base delay
@@ -106,18 +111,18 @@ impl AgentBuilder {
     }
 
     /// Configure retry behavior with custom settings.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// use forgeflow::llm::{RetryConfig, RetryStrategy};
     /// use std::time::Duration;
-    /// 
+    ///
     /// let config = RetryConfig::new(
     ///     5, // max attempts
     ///     Duration::from_millis(500), // base delay
     ///     RetryStrategy::ExponentialBackoffWithJitter
     /// );
-    /// 
+    ///
     /// let agent = AgentBuilder::new()
     ///     .with_retry_config(config)
     ///     .build()?;
@@ -128,7 +133,7 @@ impl AgentBuilder {
     }
 
     /// Explicitly disable retry functionality.
-    /// 
+    ///
     /// By default, retry is enabled. Use this method to explicitly opt-out.
     /// This is equivalent to `.with_retry_config(RetryConfig::disabled())`.
     pub fn without_retry(mut self) -> Self {
@@ -167,7 +172,7 @@ impl AgentBuilder {
 
         Ok(Agent {
             triggers: self.triggers,
-            shutdown_handler: shutdown_handler,
+            shutdown_handler,
             model: final_model,
             prompt_template: self.prompt_template.unwrap(),
             handlebars,
@@ -308,7 +313,7 @@ mod tests {
 
     // Mock LLM for testing
     struct MockLLM;
-    
+
     #[async_trait::async_trait]
     impl LLM for MockLLM {
         async fn prompt(&mut self, _prompt: String) -> Result<String, crate::llm::LLMError> {
@@ -332,11 +337,7 @@ mod tests {
 
     #[test]
     fn test_agent_builder_with_custom_retry_config() {
-        let custom_config = RetryConfig::new(
-            5,
-            Duration::from_millis(2000),
-            RetryStrategy::Fixed,
-        );
+        let custom_config = RetryConfig::new(5, Duration::from_millis(2000), RetryStrategy::Fixed);
         let builder = AgentBuilder::new().with_retry_config(custom_config.clone());
         assert!(builder.retry_config.is_some());
         let stored_config = builder.retry_config.unwrap();
@@ -359,7 +360,7 @@ mod tests {
         let builder = AgentBuilder::new()
             .with_model(Box::new(mock_llm))
             .with_prompt_template("test template".to_string());
-        
+
         // Should not panic and should build successfully
         // The default retry config should be applied internally
         let result = builder.build();

@@ -74,10 +74,10 @@ impl Tool for SimpleFileWriter {
         let filename = format!("{}.txt", Uuid::new_v4());
         let file_path = self.output_dir.join(&filename);
 
-        let result = fs::write(&file_path, params.content).await?;
+        fs::write(&file_path, params.content).await?;
 
         let success_message = format!("Successfully wrote content to '{}'", file_path.display());
         info!(message = %success_message);
-        Ok(result)
+        Ok(())
     }
 }

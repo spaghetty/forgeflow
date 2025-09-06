@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 
+#[allow(dead_code)]
 const LINE: &str = "============";
 
 #[derive(Debug, thiserror::Error)]
@@ -58,7 +59,7 @@ impl Tool for DailySummaryWriter {
 
     async fn call(&self, params: Self::Args) -> Result<Self::Output, Self::Error> {
         let date = Local::now().format("%Y-%m-%d").to_string();
-        let file_name = format!("{}.txt", date);
+        let file_name = format!("{date}.txt");
         let file_path = self.output_dir.join(file_name);
 
         let mut file = OpenOptions::new()
@@ -67,7 +68,7 @@ impl Tool for DailySummaryWriter {
             .open(file_path)
             .await?;
 
-        file.write_all(format!("\n{}\n", LINE).as_bytes()).await?;
+        file.write_all(format!("\n{{LINE}}\n").as_bytes()).await?;
         file.write_all(params.content.as_bytes()).await?;
 
         Ok(())
@@ -92,7 +93,7 @@ mod tests {
         writer.call(args).await.unwrap();
 
         let date = Local::now().format("%Y-%m-%d").to_string();
-        let file_name = format!("{}.txt", date);
+        let file_name = format!("{date}.txt");
         let file_path = dir.path().join(file_name);
 
         let content = fs::read_to_string(file_path).await.unwrap();
@@ -116,7 +117,7 @@ mod tests {
         writer.call(args2).await.unwrap();
 
         let date = Local::now().format("%Y-%m-%d").to_string();
-        let file_name = format!("{}.txt", date);
+        let file_name = format!("{date}.txt");
         let file_path = dir.path().join(file_name);
 
         let content = fs::read_to_string(file_path).await.unwrap();

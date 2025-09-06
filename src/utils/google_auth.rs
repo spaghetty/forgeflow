@@ -4,8 +4,8 @@ use google_gmail1::{
     Gmail,
     api::Scope,
     yup_oauth2::{
-        authenticator_delegate::InstalledFlowDelegate, InstalledFlowAuthenticator,
-        InstalledFlowReturnMethod,
+        InstalledFlowAuthenticator, InstalledFlowReturnMethod,
+        authenticator_delegate::InstalledFlowDelegate,
     },
 };
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
@@ -49,6 +49,7 @@ pub enum GoogleAuthFlow {
         port: Option<u16>,
         /// Whether to open the browser automatically.
         open_browser: bool,
+
     },
     /// The interactive flow.
     Interactive {
@@ -63,6 +64,7 @@ impl Default for GoogleAuthFlow {
             port: None,
             open_browser: false,
         }
+
     }
 }
 
@@ -160,7 +162,7 @@ pub async fn gmail_auth(conf: GConf, scopes: &[Scope]) -> Result<GmailHubType, A
     let auth = builder.build().await.unwrap();
 
     // Request initial token to ensure authentication works
-    let _token = auth.token(&scopes).await.unwrap();
+    let _token = auth.token(scopes).await.unwrap();
 
     // Initialize the crypto provider
     _ = CryptoProvider::install_default(default_provider());
