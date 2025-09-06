@@ -18,7 +18,7 @@ use forgeflow::{
     shutdown,
     tools::{DailySummaryWriter, gmail_actions::GmailTool},
     triggers::GmailWatchTrigger,
-    utils::google_auth::GConf,
+    utils::google_auth::{GConf, GoogleAuthFlow, InnerConf},
 };
 use prompt_crafter::{Context, Instruction, OutputFormat, Persona, Prompt};
 use rig::{
@@ -28,6 +28,7 @@ use rig::{
     providers::gemini::completion::gemini_api_types::GenerationConfig,
 };
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use tracing::{Level, error, info};
 use tracing_subscriber::FmtSubscriber;
@@ -41,10 +42,14 @@ async fn main() {
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     // Create the trigger using GmailWatchTrigger::new
-    let conf = GConf::new(
-        Path::new("./tmp/credential.json").to_path_buf(),
-        Path::new("./tmp/token.json").to_path_buf(),
-    );
+    let conf = GConf::from(Arc::new(InnerConf {
+        credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
+        token_path: Path::new("./tmp/token.json").to_path_buf(),
+        flow: GoogleAuthFlow::Redirect {
+            port: None,
+            open_browser: true,
+        },
+    }));
     let trigger = GmailWatchTrigger::new(conf.clone()).await.unwrap();
     info!("GmailWatchTrigger initialized");
 
