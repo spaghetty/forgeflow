@@ -33,7 +33,7 @@ hyper-util = { version = "0.1.16", features = [
 rig-core = "0.18.2"
 tokio-retry = "0.3.0"
 rustls = "0.23.29"
-serde = "1.0.219"
+serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
 teloxide = "0.13.0"
 teloxide-core = "0.13.0"
@@ -44,6 +44,7 @@ tokio-utils = "0.1.2"
 tracing = "0.1.40"
 uuid = { version = "1.17.0", features = ["v4"] }
 yup-oauth2 = "12.1.0"
+webbrowser = "0.8"
 
 [dev-dependencies]
 tempfile = "3.10.1"

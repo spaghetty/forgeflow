@@ -3,14 +3,20 @@
 use google_gmail1::{
     Gmail,
     api::Scope,
-    yup_oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod},
+    yup_oauth2::{
+        authenticator_delegate::InstalledFlowDelegate, InstalledFlowAuthenticator,
+        InstalledFlowReturnMethod,
+    },
 };
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::{
     client::legacy::Client, client::legacy::connect::HttpConnector, rt::TokioExecutor,
 };
 use rustls::crypto::{CryptoProvider, ring::default_provider};
+use serde::{de, Deserialize, Deserializer};
+use std::future::Future;
 use std::path::PathBuf;
+use std::pin::Pin;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio_util::bytes;
@@ -33,26 +39,86 @@ pub enum AuthError {
     AuthError,
 }
 
+/// The `GoogleAuthFlow` enum represents the different authentication flows.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GoogleAuthFlow {
+    /// The redirect flow.
+    Redirect {
+        /// The port to use for the redirect server.
+        port: Option<u16>,
+    },
+    /// The interactive flow.
+    Interactive {
+        /// Whether to open the browser automatically.
+        open_browser: bool,
+    },
+}
+
+impl Default for GoogleAuthFlow {
+    fn default() -> Self {
+        GoogleAuthFlow::Redirect { port: None }
+    }
+}
+
+/// An installed flow delegate that opens the browser.
+#[derive(Debug, Default)]
+pub struct InstalledFlowBrowserDelegate;
+
+impl InstalledFlowDelegate for InstalledFlowBrowserDelegate {
+    fn present_user_url<'a>(
+        &'a self,
+        url: &'a str,
+        need_code: bool,
+    ) -> Pin<Box<dyn Future<Output = Result<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            if webbrowser::open(url).is_ok() {
+                println!("Your browser has been opened to visit:\n\n\t{url}\n");
+            } else {
+                println!("Please visit this URL in your browser:\n\n\t{url}\n");
+            }
+
+            if need_code {
+                println!("Please enter the code you see in your browser here: ");
+                let mut code = String::new();
+                std::io::stdin().read_line(&mut code).unwrap();
+                Ok(code)
+            } else {
+                Ok(String::new())
+            }
+        })
+    }
+}
+
 /// The `GConf` struct holds the configuration for Google authentication.
 #[derive(Clone, Debug)]
-pub struct GConf(Arc<InnerConf>);
+pub struct GConf(pub Arc<InnerConf>);
 
 /// The inner configuration for `GConf`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct InnerConf {
     /// The path to the `credential.json` file.
     pub credentials_path: PathBuf,
     /// The path to the `token.json` file.
     pub token_path: PathBuf,
+    /// The authentication flow to use.
+    #[serde(default)]
+    pub flow: GoogleAuthFlow,
 }
 
-impl GConf {
-    /// Creates a new `GConf`.
-    pub fn new(credentials_path: PathBuf, token_path: PathBuf) -> GConf {
-        GConf(Arc::new(InnerConf {
-            credentials_path,
-            token_path,
-        }))
+impl<'de> Deserialize<'de> for GConf {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = InnerConf::deserialize(deserializer)?;
+        Ok(GConf(Arc::new(inner)))
+    }
+}
+
+impl From<Arc<InnerConf>> for GConf {
+    fn from(inner: Arc<InnerConf>) -> Self {
+        GConf(inner)
     }
 }
 
@@ -65,12 +131,25 @@ pub async fn gmail_auth(conf: GConf, scopes: &[Scope]) -> Result<GmailHubType, A
         .await
         .expect("credential file missing");
 
+    let return_method = match conf.0.flow {
+        GoogleAuthFlow::Redirect { port } => match port {
+            Some(port) => InstalledFlowReturnMethod::HTTPPortRedirect(port),
+            None => InstalledFlowReturnMethod::HTTPRedirect,
+        },
+        GoogleAuthFlow::Interactive { .. } => InstalledFlowReturnMethod::Interactive,
+    };
+
     // Set up OAuth2 authenticator with required Gmail scopes
-    let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::HTTPRedirect)
-        .persist_tokens_to_disk(&conf.0.token_path)
-        .build()
-        .await
-        .unwrap();
+    let mut builder = InstalledFlowAuthenticator::builder(secret, return_method)
+        .persist_tokens_to_disk(&conf.0.token_path);
+
+    if let GoogleAuthFlow::Interactive { open_browser } = conf.0.flow {
+        if open_browser {
+            builder = builder.flow_delegate(Box::new(InstalledFlowBrowserDelegate::default()));
+        }
+    }
+
+    let auth = builder.build().await.unwrap();
 
     // Request initial token to ensure authentication works
     let _token = auth.token(scopes).await.unwrap();
