@@ -20,15 +20,20 @@ pub struct TEngine {
     handlebars: Handlebars<'static>,
 }
 
+impl Default for TEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TEngine {
     pub fn new() -> Self {
         let mut te = TEngine {
             handlebars: Handlebars::new(),
         };
         handlebars_helper!(obj: |v: Value| {
-            let output = serde_json::to_string(&v).unwrap();
-            //let output = output.replace("\"", "'");
-            output
+            //let output = output.replace("\"", "'/");
+            serde_json::to_string(&v).unwrap()
         });
         te.handlebars.register_escape_fn(no_escape);
         te.handlebars.register_helper("verbatim", Box::new(obj));

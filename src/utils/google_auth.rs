@@ -73,7 +73,7 @@ pub async fn gmail_auth(conf: GConf, scopes: &[Scope]) -> Result<GmailHubType, A
         .unwrap();
 
     // Request initial token to ensure authentication works
-    let _token = auth.token(&scopes).await.unwrap();
+    let _token = auth.token(scopes).await.unwrap();
 
     // Initialize the crypto provider
     _ = CryptoProvider::install_default(default_provider());

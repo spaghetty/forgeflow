@@ -12,11 +12,12 @@
 // - Respecting retry delay hints from Google API responses
 // - Only retrying on transient errors, not permanent failures
 
+use dotenv;
 use forgeflow::{
     agent::AgentBuilder,
     llm::decorators::RetryableLLM,
     shutdown,
-    tools::{DailySummaryWriter, gmail_actions::GmailTool},
+    tools::{DailySummaryWriter, gmail_tool::GmailTool},
     triggers::GmailWatchTrigger,
     utils::google_auth::GConf,
 };
@@ -34,6 +35,9 @@ use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() {
+    // Load environment variables from .env file
+    dotenv::dotenv().ok();
+
     // Initialize the logger.
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
