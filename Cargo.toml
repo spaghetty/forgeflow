@@ -8,12 +8,14 @@ members = [
     ".",                        # The root package (your library)
     "examples/gmail_hook",
     "examples/haiku_generator",
+    "examples/telegram_agent",
     "prompt-crafter",
 ]
 
 [dependencies]
 async-trait = "0.1.88"
 chrono = "0.4.41"
+dotenv = "0.15.0"
 google-gmail1 = "6.0.0"
 handlebars = "6.3.2"
 http-body-util = { version = "0.1.3", features = ["full"] }
@@ -32,6 +34,7 @@ tokio-retry = "0.3.0"
 rustls = "0.23.29"
 serde = "1.0.219"
 serde_json = "1.0.141"
+teloxide = "0.13.0"
 teloxide-core = "0.13.0"
 thiserror = "2.0.12"
 tokio = { version = "1.46.1", features = ["full"] }

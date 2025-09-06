@@ -3,6 +3,7 @@
 pub mod event;
 pub mod gmail_watch_trigger;
 pub mod poll_trigger;
+pub mod telegram_bot_trigger;
 
 use crate::utils::google_auth::AuthError;
 use async_trait::async_trait;
@@ -12,6 +13,7 @@ use tokio::sync::{broadcast, mpsc};
 use crate::triggers::event::TEvent;
 pub use crate::triggers::gmail_watch_trigger::GmailWatchTrigger;
 pub use crate::triggers::poll_trigger::PollTrigger;
+pub use crate::triggers::telegram_bot_trigger::TelegramBotTrigger;
 
 /// The `TriggerError` enum defines the possible errors that can occur within a trigger.
 #[derive(Error, Debug)]
