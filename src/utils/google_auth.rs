@@ -4,8 +4,8 @@ use google_gmail1::{
     Gmail,
     api::Scope,
     yup_oauth2::{
-        authenticator_delegate::InstalledFlowDelegate, InstalledFlowAuthenticator,
-        InstalledFlowReturnMethod,
+        InstalledFlowAuthenticator, InstalledFlowReturnMethod,
+        authenticator_delegate::InstalledFlowDelegate,
     },
 };
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
@@ -13,7 +13,7 @@ use hyper_util::{
     client::legacy::Client, client::legacy::connect::HttpConnector, rt::TokioExecutor,
 };
 use rustls::crypto::{CryptoProvider, ring::default_provider};
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;

@@ -19,7 +19,7 @@ use forgeflow::{
     shutdown,
     tools::{DailySummaryWriter, gmail_tool::GmailTool},
     triggers::GmailWatchTrigger,
-    utils::google_auth::{GConf, InnerConf},
+    utils::google_auth::{GConf, GoogleAuthFlow, InnerConf},
 };
 use prompt_crafter::{Context, Instruction, OutputFormat, Persona, Prompt};
 use rig::{
@@ -49,7 +49,7 @@ async fn main() {
     let conf = GConf::from(Arc::new(InnerConf {
         credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
         token_path: Path::new("./tmp/token.json").to_path_buf(),
-        flow: Default::default(),
+        flow: GoogleAuthFlow::Interactive { open_browser: true },
     }));
     let trigger = GmailWatchTrigger::new(conf.clone()).await.unwrap();
     info!("GmailWatchTrigger initialized");
