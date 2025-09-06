@@ -49,7 +49,6 @@ async fn main() {
     let conf = GConf::from(Arc::new(InnerConf {
         credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
         token_path: Path::new("./tmp/token.json").to_path_buf(),
-        configurable-oauth-flow
         flow: GoogleAuthFlow::Redirect {
             port: None,
             open_browser: true,
