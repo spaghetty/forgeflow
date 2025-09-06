@@ -72,7 +72,9 @@ impl Trigger for GmailWatchTrigger {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::google_auth::InnerConf;
     use std::path::Path;
+    use std::sync::Arc;
 
     // This is the test function
     #[tokio::test]
@@ -82,10 +84,11 @@ mod tests {
         let (event_tx, mut _event_rx) = mpsc::channel::<TEvent>(10);
         let (shutdown_tx, shutdown_rx) = broadcast::channel::<()>(1);
 
-        let conf = GConf::new(
-            Path::new("./tmp/credential.json").to_path_buf(),
-            Path::new("./tmp/token.json").to_path_buf(),
-        );
+        let conf = GConf::from(Arc::new(InnerConf {
+            credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
+            token_path: Path::new("./tmp/token.json").to_path_buf(),
+            flow: Default::default(),
+        }));
         // Create the PollTrigger instance.
         let gtrigger = GmailWatchTrigger::new(conf).await;
 
