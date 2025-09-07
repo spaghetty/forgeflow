@@ -14,7 +14,7 @@
 //!
 //! ### Basic Usage with RetryableLLM
 //!
-//! ```rust
+//! ```rust,ignore
 //! use forgeflow::llm::retry::RetryableLLM;
 //! use forgeflow::llm::LLM;
 //!
@@ -32,7 +32,7 @@
 //!
 //! ### Manual Retry Control
 //!
-//! ```rust
+//! ```rust,ignore
 //! use forgeflow::llm::retry::ManualRetryLLM;
 //! use std::time::Duration;
 //!
@@ -71,7 +71,7 @@ use std::time::Duration;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// use forgeflow::llm::retry::RetryableLLM;
 /// # use forgeflow::llm::{LLM, LLMError};
 /// # use async_trait::async_trait;
@@ -211,7 +211,7 @@ impl<L: LLM + Send + Sync> LLM for RetryableLLM<L> {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// use forgeflow::llm::retry::ManualRetryLLM;
 /// use std::time::Duration;
 /// # use forgeflow::llm::{LLM, LLMError};

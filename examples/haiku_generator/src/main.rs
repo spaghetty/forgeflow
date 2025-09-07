@@ -1,5 +1,7 @@
 // This example demonstrates a simple agent that generates haikus and saves them to a file.
-use forgeflow::{agent::AgentBuilder, shutdown, tools::SimpleFileWriter, triggers::PollTrigger};
+use forgeflow::{
+    agent::AgentBuilder, shutdown, SimpleFileWriterBuilder, PollTriggerBuilder,
+};
 use rig::{
     client::CompletionClient,
     prelude::ProviderClient,
@@ -26,7 +28,7 @@ async fn main() {
 
     // Create a tool to write the generated haikus to a file.
     let output_dir = PathBuf::from("./haikus");
-    let file_writer_actuator = SimpleFileWriter::new(output_dir);
+    let file_writer_actuator = SimpleFileWriterBuilder::new(output_dir).build();
 
     // Create a new Gemini client.
     let gemini_client = Client::from_env();
@@ -53,10 +55,10 @@ async fn main() {
     let agent_result = AgentBuilder::new()
         .with_model(Box::new(gemini_agent))
         .with_prompt_template("Write a haiku about the following topic: {{name}}".to_string())
-        .add_trigger(PollTrigger::new(
-            "The Rust Programming Language",
-            Duration::from_secs(12),
-            true,
+        .add_trigger(Box::new(
+            PollTriggerBuilder::new("The Rust Programming Language", Duration::from_secs(12))
+                .with_hot_start(true)
+                .build(),
         ))
         .with_shutdown_handler(shutdown::TimeBasedShutdown::new(Duration::from_secs(20)))
         .build();

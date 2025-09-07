@@ -17,8 +17,8 @@ use forgeflow::{
     agent::AgentBuilder,
     llm::decorators::RetryableLLM,
     shutdown,
-    tools::{DailySummaryWriter, gmail_tool::GmailTool},
-    triggers::GmailWatchTrigger,
+    // Import the new builders
+    ContextHub, DailySummaryWriterBuilder, GmailToolBuilder, GmailWatchTriggerBuilder,
     utils::google_auth::{GConf, GoogleAuthFlow, InnerConf},
 };
 use prompt_crafter::{Context, Instruction, OutputFormat, Persona, Prompt};
@@ -30,12 +30,11 @@ use rig::{
 };
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-
-use tracing::{Level, error, info};
+use tracing::{error, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables from .env file
     dotenv::dotenv().ok();
 
@@ -43,10 +42,13 @@ async fn main() {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
 
-    // Create the trigger using GmailWatchTrigger::new
-    let conf = GConf::from(Arc::new(InnerConf {
+    // --- New API Flow ---
+
+    // 1. Create the configuration for Google services
+    let gconf = GConf::from(Arc::new(InnerConf {
         credentials_path: Path::new("./tmp/credential.json").to_path_buf(),
         token_path: Path::new("./tmp/token.json").to_path_buf(),
         flow: GoogleAuthFlow::Redirect {
@@ -54,14 +56,28 @@ async fn main() {
             open_browser: true,
         },
     }));
-    let trigger = GmailWatchTrigger::new(conf.clone()).await.unwrap();
-    info!("GmailWatchTrigger initialized");
 
-    //Instatiante the right tool for the job
-    let output_dir = PathBuf::from("./daily_summary");
-    let summary_writer = DailySummaryWriter::new(output_dir);
+    // 2. Create the Hub
+    let hub = Arc::new(ContextHub::new(gconf));
 
-    let gmail_actions = GmailTool::new(conf.clone());
+    // 3. Create Builders. This step synchronously registers the scopes with the hub.
+    let trigger_builder = GmailWatchTriggerBuilder::new(hub.clone());
+    let tool_builder = GmailToolBuilder::new(hub.clone());
+    let summary_writer_builder =
+        DailySummaryWriterBuilder::new(PathBuf::from("./daily_summary"));
+
+    // 4. Build the components. This step performs the single authentication.
+    let trigger = trigger_builder.build().await?;
+    info!("GmailWatchTrigger built successfully");
+
+    let gmail_actions = tool_builder.build().await?;
+    info!("GmailTool built successfully");
+
+    let summary_writer = summary_writer_builder.build();
+    info!("DailySummaryWriter tool built successfully");
+
+    // --- End of New API Flow ---
+
     //Instantiate the rigth model
     let gemini_client = Client::from_env();
 
@@ -106,18 +122,11 @@ async fn main() {
         .additional_params(serde_json::to_value(cfg).unwrap())
         .build();
 
-    // Wrap the Gemini agent with retry logic to handle rate limiting (429 errors)
-    // This is crucial for production email processing where rate limits are common
-    // The wrapper will:
-    // - Automatically retry on 429 rate limit errors up to 3 times
-    // - Use exponential backoff with jitter to avoid thundering herd issues
-    // - Respect any retry delay hints provided by the Gemini API
-    // - Immediately fail on permanent errors (4xx/5xx except 429)
     let retryable_gemini_agent = RetryableLLM::new(gemini_agent, 3);
     info!("Created RetryableLLM wrapper with 3 retry attempts for rate limiting");
 
     // Create the agent.
-    let agent_result = AgentBuilder::new()
+    let agent = AgentBuilder::new()
         .add_trigger(Box::new(trigger))
         .with_shutdown_handler(shutdown::CtrlCShutdown::new())
         .with_model(Box::new(retryable_gemini_agent))
@@ -125,18 +134,13 @@ async fn main() {
             "This is a {{name}}:\nthis message id is {{payload.id}}, use it for acting on the specific email.\n receiveing data {{verbatim payload.payload.headers}}\n content in parts {{verbatim payload.payload.parts}}"
                 .to_string(),
         )
-        .build();
+        .build()?;
 
     // Run the agent.
-    match agent_result {
-        Ok(agent) => {
-            if let Err(e) = agent.run().await {
-                error!(error = %e, "Agent execution failed");
-            }
-        }
-        Err(e) => {
-            error!(error = %e, "Failed to build agent");
-        }
+    if let Err(e) = agent.run().await {
+        error!(error = %e, "Agent execution failed");
     }
+
     tracing::info!("Agent run completed");
+    Ok(())
 }

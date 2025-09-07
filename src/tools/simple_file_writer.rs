@@ -19,6 +19,27 @@ pub enum FileWriterError {
     FileWrite(String),
 }
 
+/// A builder for [`SimpleFileWriter`].
+pub struct SimpleFileWriterBuilder {
+    output_dir: PathBuf,
+}
+
+impl SimpleFileWriterBuilder {
+    /// Creates a new `SimpleFileWriterBuilder`.
+    ///
+    /// # Arguments
+    ///
+    /// * `output_dir` - The directory where the files will be written.
+    pub fn new(output_dir: PathBuf) -> Self {
+        Self { output_dir }
+    }
+
+    /// Builds a `SimpleFileWriter`.
+    pub fn build(&self) -> SimpleFileWriter {
+        SimpleFileWriter::new(self.output_dir.clone())
+    }
+}
+
 /// The arguments for the `SimpleFileWriter` tool.
 #[derive(serde::Deserialize)]
 pub struct SFWArgs {
@@ -79,5 +100,37 @@ impl Tool for SimpleFileWriter {
         let success_message = format!("Successfully wrote content to '{}'", file_path.display());
         info!(message = %success_message);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_simple_file_writer_tool() {
+        // --- 1. Arrange ---
+        let dir = tempdir().unwrap();
+        let output_dir = dir.path().to_path_buf();
+        let content = "This is a test.".to_string();
+
+        // Use the builder to create the tool
+        let writer = SimpleFileWriterBuilder::new(output_dir.clone()).build();
+        let args = SFWArgs {
+            content: content.clone(),
+        };
+
+        // --- 2. Act ---
+        let result = writer.call(args).await;
+
+        // --- 3. Assert ---
+        assert!(result.is_ok());
+
+        // Verify that the file was created with the correct content
+        let mut entries = fs::read_dir(output_dir).await.unwrap();
+        let entry = entries.next_entry().await.unwrap().unwrap();
+        let file_content = fs::read_to_string(entry.path()).await.unwrap();
+        assert_eq!(file_content, content);
     }
 }

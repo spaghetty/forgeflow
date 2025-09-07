@@ -7,10 +7,7 @@
 // - Automatic retry logic for reliability
 
 use forgeflow::{
-    agent::AgentBuilder,
-    shutdown,
-    tools::SimpleFileWriter,
-    triggers::TelegramBotTrigger,
+    agent::AgentBuilder, shutdown, SimpleFileWriterBuilder, TelegramBotTriggerBuilder,
 };
 use rig::{
     client::CompletionClient, 
@@ -37,8 +34,8 @@ async fn main() {
 
     info!("Starting Telegram Agent");
 
-    // Create the Telegram trigger
-    let trigger = match TelegramBotTrigger::new() {
+    // Create the Telegram trigger using the builder
+    let trigger = match TelegramBotTriggerBuilder::new().build() {
         Ok(trigger) => trigger,
         Err(e) => {
             error!("Failed to create Telegram trigger: {}", e);
@@ -50,7 +47,7 @@ async fn main() {
 
     // Create the file writer tool for logging messages
     let output_dir = PathBuf::from("./telegram_logs");
-    let file_writer = SimpleFileWriter::new(output_dir);
+    let file_writer = SimpleFileWriterBuilder::new(output_dir).build();
 
     // Create and configure the Gemini client
     let gemini_client = Client::from_env();

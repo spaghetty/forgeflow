@@ -700,6 +700,7 @@ dependencies = [
  "hyper 1.7.0",
  "hyper-rustls",
  "hyper-util",
+ "lazy_static",
  "rig-core",
  "rustls",
  "serde",

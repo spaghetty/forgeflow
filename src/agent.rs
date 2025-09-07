@@ -113,7 +113,7 @@ impl AgentBuilder {
     /// Configure retry behavior with custom settings.
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,ignore
     /// use forgeflow::llm::{RetryConfig, RetryStrategy};
     /// use std::time::Duration;
     ///

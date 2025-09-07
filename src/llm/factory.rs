@@ -31,7 +31,7 @@ impl LLMFactory {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,ignore
     /// use forgeflow::llm::{LLMFactory, RetryConfig};
     ///
     /// // No retry

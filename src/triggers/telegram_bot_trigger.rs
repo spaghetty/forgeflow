@@ -1,31 +1,56 @@
 // The `telegram_bot_trigger` module provides a trigger that listens for Telegram messages.
 
-use crate::triggers::{Trigger, TriggerError, event::TEvent};
+use crate::triggers::{event::TEvent, Trigger, TriggerError};
 use async_trait::async_trait;
 use serde_json::json;
 use std::env;
-use teloxide::{Bot, prelude::*, types::Update};
+use teloxide::{prelude::*, types::Update, Bot};
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 use tracing::{debug, info, warn};
+
+/// A builder for [`TelegramBotTrigger`].
+pub struct TelegramBotTriggerBuilder {
+    token: Option<String>,
+}
+
+impl TelegramBotTriggerBuilder {
+    /// Creates a new `TelegramBotTriggerBuilder`.
+    pub fn new() -> Self {
+        Self { token: None }
+    }
+
+    /// Sets the Telegram bot token.
+    ///
+    /// If not set, the token will be read from the `TELEGRAM_BOT_TOKEN` environment variable.
+    pub fn with_token(mut self, token: &str) -> Self {
+        self.token = Some(token.to_string());
+        self
+    }
+
+    /// Builds a `TelegramBotTrigger`.
+    pub fn build(&self) -> Result<TelegramBotTrigger, TriggerError> {
+        let token = match &self.token {
+            Some(token) => token.clone(),
+            None => env::var("TELEGRAM_BOT_TOKEN").map_err(|_| TriggerError::ActivationError)?,
+        };
+
+        let bot = Bot::new(token);
+
+        Ok(TelegramBotTrigger { bot })
+    }
+}
+
+impl Default for TelegramBotTriggerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// A trigger that listens for incoming Telegram messages.
 #[derive(Clone)]
 pub struct TelegramBotTrigger {
     bot: Bot,
-}
-
-impl TelegramBotTrigger {
-    /// Creates a new `TelegramBotTrigger`.
-    ///
-    /// Reads the bot token from the `TELEGRAM_BOT_TOKEN` environment variable.
-    pub fn new() -> Result<Self, TriggerError> {
-        let token = env::var("TELEGRAM_BOT_TOKEN").map_err(|_| TriggerError::ActivationError)?;
-
-        let bot = Bot::new(token);
-
-        Ok(Self { bot })
-    }
 }
 
 #[async_trait]
@@ -41,7 +66,6 @@ impl Trigger for TelegramBotTrigger {
         let task_handle = tokio::spawn(async move {
             info!("TelegramBotTrigger started, listening for messages");
 
-            // Create a simple handler function for messages
             let handler = |_bot: Bot, msg: Message, tx: mpsc::Sender<TEvent>| async move {
                 if let Some(text) = msg.text() {
                     let event = TEvent {
@@ -66,7 +90,6 @@ impl Trigger for TelegramBotTrigger {
                 respond(())
             };
 
-            // Use teloxide's standard dispatcher pattern with shutdown handling
             let mut dispatcher = Dispatcher::builder(
                 bot,
                 Update::filter_message().endpoint(move |bot, msg| {
@@ -76,7 +99,6 @@ impl Trigger for TelegramBotTrigger {
             )
             .build();
 
-            // Run dispatcher with shutdown signal
             tokio::select! {
                 _ = dispatcher.dispatch() => {
                     info!("Telegram dispatcher ended normally");
@@ -90,5 +112,55 @@ impl Trigger for TelegramBotTrigger {
         });
 
         Ok(task_handle)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lazy_static::lazy_static;
+    use std::sync::Mutex;
+
+    lazy_static! {
+        static ref ENV_LOCK: Mutex<()> = Mutex::new(());
+    }
+
+    #[test]
+    fn test_builder_with_token() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let builder = TelegramBotTriggerBuilder::new().with_token("test_token");
+        let trigger = builder.build();
+        assert!(trigger.is_ok());
+    }
+
+    #[test]
+    fn test_builder_with_env_var() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        unsafe {
+            std::env::set_var("TELEGRAM_BOT_TOKEN", "test_token_from_env");
+        }
+        let builder = TelegramBotTriggerBuilder::new();
+        let trigger = builder.build();
+        assert!(trigger.is_ok());
+        unsafe {
+            std::env::remove_var("TELEGRAM_BOT_TOKEN");
+        }
+    }
+
+    #[test]
+    fn test_builder_fails_without_token() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        unsafe {
+            std::env::remove_var("TELEGRAM_BOT_TOKEN");
+        }
+        let builder = TelegramBotTriggerBuilder::new();
+        let trigger_result = builder.build();
+        assert!(trigger_result.is_err());
+        match trigger_result {
+            Err(TriggerError::ActivationError) => {
+                // Correct error type
+            }
+            _ => panic!("Expected ActivationError"),
+        }
     }
 }
