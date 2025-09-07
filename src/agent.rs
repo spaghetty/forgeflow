@@ -220,7 +220,7 @@ impl Agent {
         let json_context = &json!(event);
         match self.handlebars.render_template(template, json_context) {
             Ok(prompt) => {
-                info!("Prompt: {}", prompt);
+                debug!("Prompt: {}", prompt);
                 self.inflight.fetch_add(1, Ordering::Relaxed);
                 let response = provider_client.prompt(prompt).await;
                 self.inflight.fetch_sub(1, Ordering::Relaxed);

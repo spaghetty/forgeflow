@@ -1,10 +1,11 @@
 // The `context_hub` module provides a centralized hub for managing Google API
 // authentication and context.
 
-use super::google_auth::{gmail_auth, AuthError, GConf, GmailHubType};
+use super::google_auth::{AuthError, GConf, GmailHubType, gmail_auth};
 use google_gmail1::api::Scope;
 use std::sync::Mutex;
 use tokio::sync::Mutex as TokioMutex;
+use tracing;
 
 /// A hub for managing Google API authentication and context.
 ///
@@ -51,6 +52,7 @@ impl ContextHub {
         if !scopes.contains(&scope) {
             scopes.push(scope);
         }
+        tracing::info!("Added scopes: {:?}", scopes);
     }
 
     /// Returns the authenticated `GmailHubType`.
