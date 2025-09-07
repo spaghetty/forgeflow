@@ -1,23 +1,21 @@
 // The `google_auth` module provides a helper function for authenticating with the Gmail API.
 
 use google_gmail1::{
-    Gmail,
     api::Scope,
     yup_oauth2::{
-        InstalledFlowAuthenticator, InstalledFlowReturnMethod,
-        authenticator_delegate::InstalledFlowDelegate,
+        self, authenticator_delegate::InstalledFlowDelegate, InstalledFlowAuthenticator,
+        InstalledFlowReturnMethod,
     },
+    Gmail,
 };
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use hyper_util::{
-    client::legacy::Client, client::legacy::connect::HttpConnector, rt::TokioExecutor,
+    client::legacy::{connect::HttpConnector, Client},
+    rt::TokioExecutor,
 };
-use rustls::crypto::{CryptoProvider, ring::default_provider};
+use rustls::crypto::{ring::default_provider, CryptoProvider};
 use serde::{Deserialize, Deserializer};
-use std::future::Future;
-use std::path::PathBuf;
-use std::pin::Pin;
-use std::sync::Arc;
+use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 use thiserror::Error;
 use tokio_util::bytes;
 use tracing::info;
@@ -27,16 +25,19 @@ pub type HttpsConnectorType = HttpsConnector<HttpConnector>;
 /// A type alias for the Hyper client.
 pub type HyperClient = Client<HttpsConnectorType, http_body_util::Full<bytes::Bytes>>;
 /// A type alias for the authenticator.
-pub type AuthType = google_gmail1::yup_oauth2::authenticator::Authenticator<HttpsConnectorType>;
+pub type AuthType = yup_oauth2::authenticator::Authenticator<HttpsConnectorType>;
 /// A type alias for the Gmail hub.
 pub type GmailHubType = Gmail<HttpsConnectorType>;
 
 /// The `AuthError` enum defines the possible errors that can occur during authentication.
 #[derive(Error, Debug)]
 pub enum AuthError {
-    /// An error occurred while authenticating.
-    #[error("Error authenticating the element")]
-    AuthError,
+    /// An error occurred while reading the credential file.
+    #[error("Credential file not found or failed to read: {0}")]
+    CredentialReadError(String),
+    /// An error occurred during the OAuth2 flow.
+    #[error("Authentication failed: {0}")]
+    AuthenticationFailed(String),
 }
 
 /// The `GoogleAuthFlow` enum represents the different authentication flows.
@@ -49,7 +50,6 @@ pub enum GoogleAuthFlow {
         port: Option<u16>,
         /// Whether to open the browser automatically.
         open_browser: bool,
-
     },
     /// The interactive flow.
     Interactive {
@@ -64,7 +64,6 @@ impl Default for GoogleAuthFlow {
             port: None,
             open_browser: false,
         }
-
     }
 }
 
@@ -134,9 +133,9 @@ pub async fn gmail_auth(conf: GConf, scopes: &[Scope]) -> Result<GmailHubType, A
     info!("Authenticating with Gmail API");
 
     // Read application secret
-    let secret = google_gmail1::yup_oauth2::read_application_secret(&conf.0.credentials_path)
+    let secret = yup_oauth2::read_application_secret(&conf.0.credentials_path)
         .await
-        .expect("credential file missing");
+        .map_err(|e| AuthError::CredentialReadError(e.to_string()))?;
 
     let (return_method, open_browser) = match conf.0.flow {
         GoogleAuthFlow::Redirect { port, open_browser } => (
@@ -159,10 +158,16 @@ pub async fn gmail_auth(conf: GConf, scopes: &[Scope]) -> Result<GmailHubType, A
         builder = builder.flow_delegate(Box::new(InstalledFlowBrowserDelegate::default()));
     }
 
-    let auth = builder.build().await.unwrap();
+    let auth = builder
+        .build()
+        .await
+        .map_err(|e| AuthError::AuthenticationFailed(e.to_string()))?;
 
     // Request initial token to ensure authentication works
-    let _token = auth.token(scopes).await.unwrap();
+    let _token = auth
+        .token(scopes)
+        .await
+        .map_err(|e| AuthError::AuthenticationFailed(e.to_string()))?;
 
     // Initialize the crypto provider
     _ = CryptoProvider::install_default(default_provider());

@@ -19,7 +19,9 @@ fn generate_mod_file(dir: &str, mod_file: &str) {
                 modules.push(format!("pub mod {file_name};"));
                 if file_name != "event" && file_name != "traits" {
                     let struct_name = to_pascal_case(file_name);
-                    re_exports.push(format!("pub use {file_name}::{struct_name};"));
+                    re_exports.push(format!(
+                        "pub use {file_name}::{{{struct_name}, {struct_name}Builder}};"
+                    ));
                 };
             }
         }

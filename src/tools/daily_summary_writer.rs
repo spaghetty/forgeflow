@@ -17,6 +17,27 @@ pub enum DailySummaryWriterError {
     FileWrite(String),
 }
 
+/// A builder for [`DailySummaryWriter`].
+pub struct DailySummaryWriterBuilder {
+    output_dir: PathBuf,
+}
+
+impl DailySummaryWriterBuilder {
+    /// Creates a new `DailySummaryWriterBuilder`.
+    ///
+    /// # Arguments
+    ///
+    /// * `output_dir` - The directory where the daily summary files will be stored.
+    pub fn new(output_dir: PathBuf) -> Self {
+        Self { output_dir }
+    }
+
+    /// Builds a `DailySummaryWriter`.
+    pub fn build(&self) -> DailySummaryWriter {
+        DailySummaryWriter::new(self.output_dir.clone())
+    }
+}
+
 #[derive(Deserialize)]
 pub struct DSWArgs {
     content: String,
@@ -68,7 +89,7 @@ impl Tool for DailySummaryWriter {
             .open(file_path)
             .await?;
 
-        file.write_all(format!("\n{{LINE}}\n").as_bytes()).await?;
+        file.write_all(format!("\n{LINE}\n").as_bytes()).await?;
         file.write_all(params.content.as_bytes()).await?;
 
         Ok(())
@@ -84,7 +105,7 @@ mod tests {
     #[tokio::test]
     async fn test_write_to_new_file() {
         let dir = tempdir().unwrap();
-        let writer = DailySummaryWriter::new(dir.path().to_path_buf());
+        let writer = DailySummaryWriterBuilder::new(dir.path().to_path_buf()).build();
 
         let args = DSWArgs {
             content: "This is the first summary.".to_string(),
@@ -104,7 +125,7 @@ mod tests {
     #[tokio::test]
     async fn test_append_to_existing_file() {
         let dir = tempdir().unwrap();
-        let writer = DailySummaryWriter::new(dir.path().to_path_buf());
+        let writer = DailySummaryWriterBuilder::new(dir.path().to_path_buf()).build();
 
         let args1 = DSWArgs {
             content: "This is the first summary.".to_string(),

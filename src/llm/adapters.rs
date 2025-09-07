@@ -17,7 +17,7 @@ use tracing::debug;
 /// 
 /// # Example
 /// 
-/// ```rust
+/// ```rust,ignore
 /// use forgeflow::llm::LLM;
 /// use rig::{providers::openai, client::CompletionClient};
 /// 

@@ -6,8 +6,8 @@ pub mod event;
 pub mod traits;
 pub mod telegram_bot_trigger;
 
-pub use poll_trigger::PollTrigger;
-pub use gmail_watch_trigger::GmailWatchTrigger;
-pub use telegram_bot_trigger::TelegramBotTrigger;
+pub use poll_trigger::{PollTrigger, PollTriggerBuilder};
+pub use gmail_watch_trigger::{GmailWatchTrigger, GmailWatchTriggerBuilder};
+pub use telegram_bot_trigger::{TelegramBotTrigger, TelegramBotTriggerBuilder};
 pub use crate::triggers::event::TEvent;
 pub use crate::triggers::traits::{Trigger, TriggerError};

@@ -4,6 +4,6 @@ pub mod gmail_tool;
 pub mod daily_summary_writer;
 pub mod simple_file_writer;
 
-pub use gmail_tool::GmailTool;
-pub use daily_summary_writer::DailySummaryWriter;
-pub use simple_file_writer::SimpleFileWriter;
+pub use gmail_tool::{GmailTool, GmailToolBuilder};
+pub use daily_summary_writer::{DailySummaryWriter, DailySummaryWriterBuilder};
+pub use simple_file_writer::{SimpleFileWriter, SimpleFileWriterBuilder};

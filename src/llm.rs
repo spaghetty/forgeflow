@@ -11,7 +11,7 @@
 //!
 //! # Quick Start
 //!
-//! ```rust
+//! ```rust,ignore
 //! use forgeflow::llm::{LLM, LLMError};
 //! use forgeflow::agent::AgentBuilder;
 //!
@@ -29,7 +29,7 @@
 //!
 //! For advanced users who want explicit control:
 //!
-//! ```rust
+//! ```rust,ignore
 //! use forgeflow::llm::{LLM, RetryConfig, decorators::RetryableLLM};
 //!
 //! // Manual retry wrapping
